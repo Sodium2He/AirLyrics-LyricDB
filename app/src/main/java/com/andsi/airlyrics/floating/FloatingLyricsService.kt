@@ -23,6 +23,7 @@ import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
 import com.andsi.airlyrics.lyrics.LyricsLookupRunner
 import com.andsi.airlyrics.lyrics.LyricsProviderResult
 import com.andsi.airlyrics.lyrics.LyricsRepository
+import com.andsi.airlyrics.lyrics.catalog.LyricsPrefetchCache
 import com.andsi.airlyrics.media.CurrentMediaBroadcast
 import com.andsi.airlyrics.media.MediaSourceStore
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
@@ -47,6 +48,7 @@ open class FloatingLyricsService : Service() {
 
     internal val renderer = FloatingLyricsRenderer(
         textViewProvider = { lyricsView },
+        styleProvider = { FloatingLyricsStyleStore.getStyle(this) },
         contentModeProvider = { LyricsSettingsStore.getContentDisplayMode(this) },
         lineModeProvider = { LyricsSettingsStore.getLineDisplayMode(this) },
         switchAnimationModeProvider = { LyricsSettingsStore.getSwitchAnimationMode(this) },
@@ -74,18 +76,24 @@ open class FloatingLyricsService : Service() {
         settings: LyricsSettings,
         cancellationToken: LyricsLookupCancellationToken
     ): Result<LyricsProviderResult?> {
-        return LyricsRepository.findLyrics(
-            context = this,
-            settings = settings,
-            title = media.title,
-            artist = media.artist,
-            album = media.album,
-            durationMs = media.durationMs,
-            cancellationToken = cancellationToken
-        )
+        return runCatching {
+            cancellationToken.throwIfCancellationRequested()
+            val catalog = com.andsi.airlyrics.lyrics.catalog.LibraryCatalog.openIfPresent(this)
+                ?: throw com.andsi.airlyrics.lyrics.catalog.CatalogLookupException("inactive")
+            catalog.use {
+                val outcome = it.lookup(media.toLibraryObservation(cancellationToken.requestKey))
+                cancellationToken.throwIfCancellationRequested()
+                when (outcome) {
+                    is com.andsi.airlyrics.lyrics.catalog.CatalogLookupOutcome.Finish -> outcome.result
+                        ?: throw com.andsi.airlyrics.lyrics.catalog.CatalogLookupException(outcome.status)
+                    else -> throw com.andsi.airlyrics.lyrics.catalog.CatalogLookupException("inactive")
+                }
+            }
+        }
     }
 
     internal var currentMedia: CurrentMediaInfo = CurrentMediaInfo.Empty
+    internal var catalogUnavailable = false
     internal var lastPlaybackLyricsKey: PlaybackLyricsKey? = null
     internal var automaticOnlineLookupSuppressedSong: SongIdentity? = null
     internal var activeLyricsLookupRequestKey: LyricsLookupRequestKey? = null
@@ -101,6 +109,11 @@ open class FloatingLyricsService : Service() {
     internal var pauseAutoHideSuppressedByUser = false
     internal var mediaRestoreAttempt = 0
     internal val mediaSnapshotGate = MediaSnapshotGate()
+    internal val lyricsPrefetchCache = LyricsPrefetchCache()
+    internal var queueFingerprint: String? = null
+    internal val prefetchExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "AirLyrics-QueuePrefetch").apply { isDaemon = true }
+    }
 
     internal val syncRunnable = object : Runnable {
         override fun run() {
@@ -143,6 +156,16 @@ open class FloatingLyricsService : Service() {
 
     private val lyricsChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == com.andsi.airlyrics.settings.store.LyricsSettingsStore.ACTION_STATUS_HINTS_CHANGED) {
+                reloadCurrentLyrics()
+                return
+            }
+            if (intent?.action == com.andsi.airlyrics.lyrics.catalog.LibraryCatalog.ACTION_CHANGED) {
+                lyricsPrefetchCache.clear()
+                catalogUnavailable = false
+                reloadCurrentLyrics()
+                return
+            }
             LyricsChangedBroadcast.readChange(intent)?.let(::handleLyricsChanged)
         }
     }
@@ -194,7 +217,10 @@ open class FloatingLyricsService : Service() {
         ContextCompat.registerReceiver(
             this,
             lyricsChangedReceiver,
-            LyricsChangedBroadcast.lyricsChangedFilter(),
+            LyricsChangedBroadcast.lyricsChangedFilter().apply {
+                addAction(com.andsi.airlyrics.lyrics.catalog.LibraryCatalog.ACTION_CHANGED)
+                addAction(com.andsi.airlyrics.settings.store.LyricsSettingsStore.ACTION_STATUS_HINTS_CHANGED)
+            },
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
@@ -209,6 +235,8 @@ open class FloatingLyricsService : Service() {
         displayScopeMonitor = null
         activeLyricsLookupRequestKey = null
         lyricsLookupRunner.shutdown()
+        prefetchExecutor.shutdownNow()
+        lyricsPrefetchCache.clear()
         runCatching { unregisterReceiver(mediaReceiver) }
         runCatching { unregisterReceiver(lyricsChangedReceiver) }
         if (::windowController.isInitialized) {
@@ -221,7 +249,7 @@ open class FloatingLyricsService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        internal const val CURRENT_MEDIA_REFRESH_INTERVAL_MS = 1_000L
+        internal const val CURRENT_MEDIA_REFRESH_INTERVAL_MS = 3_000L
         internal val MEDIA_RESTORE_RETRY_DELAYS_MS = longArrayOf(
             250L,
             750L,

@@ -1,19 +1,11 @@
-# AirLyrics Documentation
+# AirLyrics LyricDB documentation
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This directory contains project documentation for AirLyrics.
+- [User guide](USER_GUIDE.md): catalog publishing, synchronization and display settings.
+- [Lyrics format](LYRICS_FORMAT.md): bilingual and word timing.
+- [Architecture](ARCHITECTURE.md): data, matching and rendering paths.
+- [Development](CONTRIBUTING.md): build and validation.
+- [Privacy](../PRIVACY.md): local data and network communication.
 
-| Document                          | Description                                                    |
-|-----------------------------------|----------------------------------------------------------------|
-| [User Guide](USER_GUIDE.md)       | Project usage guide                                            |
-| [Privacy Policy](../PRIVACY.md)   | Permissions, local data and online lyrics search privacy notes |
-| [Lyrics Format](LYRICS_FORMAT.md) | Local LRC and TTML import formats                              |
-| [Contributing](CONTRIBUTING.md)   | Development environment, PR workflow and contribution rules    |
-| [Architecture](ARCHITECTURE.md)   | Module layout and runtime flow                                 |
-
-## License
-
-AirLyrics is licensed under the MIT License.
-
-See [LICENSE](../LICENSE) for details.
+Upstream attribution and the [MIT license](../LICENSE) are retained.

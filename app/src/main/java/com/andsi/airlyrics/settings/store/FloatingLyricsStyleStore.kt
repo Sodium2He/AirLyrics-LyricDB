@@ -16,6 +16,8 @@ object FloatingLyricsStyleStore {
 
     private const val KEY_PRESET = "preset"
     private const val KEY_TEXT_SIZE = "text_size"
+    private const val KEY_TRANSLATION_TEXT_SIZE = "translation_text_size"
+    private const val KEY_TRANSLATION_ALPHA = "translation_alpha"
     private const val KEY_TEXT_COLOR = "text_color"
     // Persisted compatibility contract. Do not change the serialized value.
     private const val KEY_WORD_BY_WORD_HIGHLIGHT_COLOR = "karaoke_highlight_color"
@@ -107,6 +109,8 @@ object FloatingLyricsStyleStore {
         return FloatingLyricsStyle(
             presetName = normalizePreset(prefs.getString(KEY_PRESET, DEFAULT_PRESET)),
             textSizeSp = prefs.getFloat(KEY_TEXT_SIZE, 18f),
+            translationTextSizeSp = prefs.getFloat(KEY_TRANSLATION_TEXT_SIZE, prefs.getFloat(KEY_TEXT_SIZE, 18f) * 0.76f).coerceIn(8f, 56f),
+            translationAlpha = prefs.getInt(KEY_TRANSLATION_ALPHA, 153).coerceIn(0, 255),
             textColor = prefs.getInt(KEY_TEXT_COLOR, Color.WHITE),
             wordByWordHighlightColor = prefs.getInt(KEY_WORD_BY_WORD_HIGHLIGHT_COLOR, Color.rgb(120, 220, 255)),
             shadowColor = prefs.getInt(KEY_SHADOW_COLOR, Color.BLACK),
@@ -154,6 +158,8 @@ object FloatingLyricsStyleStore {
         prefs(context).edit {
             putString(KEY_PRESET, normalizePreset(style.presetName))
             putFloat(KEY_TEXT_SIZE, style.textSizeSp)
+            putFloat(KEY_TRANSLATION_TEXT_SIZE, style.translationTextSizeSp.coerceIn(8f, 56f))
+            putInt(KEY_TRANSLATION_ALPHA, style.translationAlpha.coerceIn(0, 255))
             putInt(KEY_TEXT_COLOR, style.textColor)
             putInt(KEY_WORD_BY_WORD_HIGHLIGHT_COLOR, style.wordByWordHighlightColor)
             putInt(KEY_SHADOW_COLOR, style.shadowColor)

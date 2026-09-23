@@ -32,6 +32,9 @@ import com.andsi.airlyrics.i18n.localizedLocalLyricsMeta
 import com.andsi.airlyrics.i18n.localizedLocalLyricsSubtitle
 import com.andsi.airlyrics.i18n.localizedLocalLyricsType
 import com.andsi.airlyrics.i18n.localizedLocalPlainLyricsSource
+import com.andsi.airlyrics.lyrics.catalog.CatalogLookupOutcome
+import com.andsi.airlyrics.lyrics.catalog.LibraryCatalog
+import com.andsi.airlyrics.lyrics.catalog.TrackObservation
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import com.andsi.airlyrics.media.CurrentMediaReader
 import com.andsi.airlyrics.media.MediaSourceStore
@@ -43,6 +46,7 @@ import com.andsi.airlyrics.settings.store.FloatingLyricsStyleStore
 import com.andsi.airlyrics.settings.store.FloatingLyricsFontStore
 import com.andsi.airlyrics.settings.store.LyricsOffsetStore
 import com.andsi.airlyrics.settings.store.LyricsSettingsStore
+import com.andsi.airlyrics.settings.store.LibrarySyncStore
 import com.andsi.airlyrics.settings.store.ThemeSettingsStore
 import com.andsi.airlyrics.ui.model.CurrentLyricsUiState
 import com.andsi.airlyrics.ui.model.CurrentMediaUiInfo
@@ -268,6 +272,12 @@ internal class MainActivityUiHost(
         }
     }
 
+    override fun lyricLineFilter() = LyricsSettingsStore.getLineFilter(this)
+    override fun applyLyricLineFilter(filter: com.andsi.airlyrics.core.model.LyricLineFilter) {
+        LyricsSettingsStore.setLineFilter(this, filter)
+        graph.floatingController.reloadLyrics()
+    }
+
     override fun applyFloatingPreset(preset: String) = graph.floatingController.applyPreset(preset)
     override fun applyFloatingStyle(style: FloatingLyricsStyle) = graph.floatingController.applyStyle(style)
     override fun applyFloatingTextSize(textSizeSp: Float, refreshPage: Boolean) {
@@ -337,33 +347,35 @@ internal class MainActivityUiHost(
     override fun currentLyricsState(): CurrentLyricsUiState {
         val media = graph.viewModel.currentMediaInfo()
         val offsetMs = media?.let { LyricsOffsetStore.getOffsetMs(this, it.toSongIdentity()) } ?: 0L
-        val localInfo = media?.let {
-            LyricsStorage.getLocalPlainLyricsInfo(
-                context = this,
-                title = it.title,
-                artist = it.artist,
-                duration = it.durationMs
-            )
+        val outcome = media?.let { current ->
+            runCatching {
+                LibraryCatalog.openIfPresent(this)?.use { catalog ->
+                    catalog.lookup(TrackObservation(
+                        title = current.title.takeIf { it.isNotBlank() },
+                        artist = current.artist.takeIf { it.isNotBlank() },
+                        album = current.album.takeIf { it.isNotBlank() },
+                        albumArtist = current.albumArtist,
+                        durationMs = current.durationMs.takeIf { current.durationKnown && it > 0L },
+                        durationKnown = current.durationKnown,
+                        trackNumber = current.trackNumber,
+                        discNumber = current.discNumber
+                    ))
+                }
+            }.getOrElse { CatalogLookupOutcome.Finish(null, "read_error") }
         }
-        val hasLocalWordByWordLyrics = media?.let {
-            LyricsStorage.hasWordByWordLyrics(
-                context = this,
-                title = it.title,
-                artist = it.artist,
-                duration = it.durationMs
-            )
-        } == true
+        val finished = outcome as? CatalogLookupOutcome.Finish
+        val result = finished?.result
         return CurrentLyricsUiState(
             media = media?.toUiInfo(),
-            localSourceText = localInfo?.let { localizedLocalPlainLyricsSource(it) },
-            plainLyricsTitle = localInfo?.friendlyTitle,
-            plainLyricsDownloaded = localInfo?.plainSource == LyricsStorage.SOURCE_DOWNLOADED,
-            hasPlainLyrics = localInfo != null,
-            canRemoveAllLyrics =
-                localInfo != null && localInfo.plainSource != LyricsStorage.SOURCE_WORD_BY_WORD_FALLBACK,
-            hasLocalWordByWordLyrics = hasLocalWordByWordLyrics,
+            localSourceText = getString(R.string.ui_library_catalog),
+            plainLyricsTitle = com.andsi.airlyrics.i18n.catalogStatusText(this, finished?.status ?: "inactive"),
+            plainLyricsDownloaded = false,
+            hasPlainLyrics = result != null,
+            canRemoveAllLyrics = false,
+            hasLocalWordByWordLyrics = result?.wordByWordLines?.isNotEmpty() == true,
             wordByWordLyricsEnabled = LyricsSettingsStore.isWordByWordLyricsEnabled(this),
-            offsetMs = offsetMs
+            offsetMs = offsetMs,
+            catalogOnly = true
         )
     }
 
@@ -388,8 +400,16 @@ internal class MainActivityUiHost(
             plainLyricsSourceOptions = PlainLyricsSearchSource.onlineSources,
             autoSearchOnline = LyricsSettingsStore.isAutoSearchOnlineEnabled(this),
             autoSaveLocal = LyricsSettingsStore.isAutoSaveLocalEnabled(this),
-            lyricsDirectoryPath = LyricsStorage.getLyricsDirRawPath(this)
+            lyricsDirectoryPath = LyricsStorage.getLyricsDirRawPath(this),
+            catalogActiveText = catalogActiveText(),
+            syncEnabled = LibrarySyncStore.isEnabled(this),
+            syncUrl = LibrarySyncStore.getManifestUrl(this),
+            syncStatusText = librarySyncStatusText()
         )
+    }
+
+    override fun showLibrarySyncEditor() {
+        showLibrarySyncEditorImpl()
     }
 
     override fun languageSettingsState(): LanguageSettingsUiState {

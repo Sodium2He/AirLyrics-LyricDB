@@ -88,6 +88,7 @@ class MainViewModelStateTest : MainViewModelTestBase() {
         viewModel.openNotificationListenerSettings()
         viewModel.openUsageAccessSettings()
         viewModel.selectLyricsDirectory()
+        viewModel.selectLibraryPublishDirectory()
         viewModel.selectLyricsFile()
         viewModel.selectFloatingFontFile()
 
@@ -98,6 +99,7 @@ class MainViewModelStateTest : MainViewModelTestBase() {
                 MainUiEffect.OpenNotificationListenerSettings,
                 MainUiEffect.OpenUsageAccessSettings,
                 MainUiEffect.SelectLyricsDirectory,
+                MainUiEffect.SelectLibraryPublishDirectory,
                 MainUiEffect.SelectLyricsFile,
                 MainUiEffect.SelectFloatingFontFile
             ),

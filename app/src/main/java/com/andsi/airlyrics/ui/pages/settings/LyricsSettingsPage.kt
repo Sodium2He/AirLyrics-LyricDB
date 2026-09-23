@@ -26,13 +26,16 @@ internal fun createLyricsSettingsPage(activity: MainUiHost): View  = with(activi
         card(activity) {
             addView(bigText(activity, getString(R.string.ui_search_strategy)))
 
-            val autoSearchButton = actionButton(activity, getString(if (settings.autoSearchOnline) R.string.ui_online_fallback_on else R.string.ui_online_fallback_off)) { }
-            autoSearchButton.setOnClickListener {
-                val enabled = uiActions.toggleLyricsAutoSearch()
-                autoSearchButton.setText(if (enabled) R.string.ui_online_fallback_on else R.string.ui_online_fallback_off)
-                playLocalRefreshFeedback(activity, autoSearchButton, null, getString(R.string.ui_updated))
+            addView(normalText(activity, getString(R.string.ui_database_source_active)))
+            addView(smallHint(activity, getString(R.string.ui_database_source_hint)))
+            val hints = android.widget.Switch(activity).apply {
+                setText(R.string.ui_show_lyrics_status_hints)
+                isChecked = com.andsi.airlyrics.settings.store.LyricsSettingsStore.areStatusHintsEnabled(activity)
+                setOnCheckedChangeListener { _, enabled ->
+                    com.andsi.airlyrics.settings.store.LyricsSettingsStore.setStatusHintsEnabled(activity, enabled)
+                }
             }
-            addView(autoSearchButton)
+            addView(hints)
 
             val autoSaveButton = actionButton(activity, getString(if (settings.autoSaveLocal) R.string.ui_auto_save_on else R.string.ui_auto_save_off)) { }
             autoSaveButton.setOnClickListener {
@@ -56,6 +59,68 @@ internal fun createLyricsSettingsPage(activity: MainUiHost): View  = with(activi
             })
             addView(actionButton(activity, getString(R.string.ui_copy_lyrics_save_folder)) {
                 uiActions.copyLyricsDirectory()
+            })
+        }
+    )
+
+    container.addView(
+        card(activity) {
+            addView(bigText(activity, getString(R.string.ui_library_catalog)))
+            addView(
+                normalText(
+                    activity,
+                    settings.catalogActiveText
+                )
+            )
+            addView(smallHint(activity, getString(R.string.ui_library_catalog_hint)))
+            addView(actionButton(activity, getString(R.string.ui_choose_library_publish_folder)) {
+                uiActions.selectLibraryPublishDirectory()
+            })
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(bigText(activity, getString(R.string.ui_library_sync)),
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                addView(android.widget.TextView(activity).apply {
+                    text = "…"
+                    textSize = 24f
+                    gravity = Gravity.CENTER
+                    contentDescription = getString(R.string.ui_library_sync_more)
+                    layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+                    setOnClickListener { anchor ->
+                        android.widget.PopupMenu(activity, anchor).apply {
+                            menu.add(getString(R.string.ui_library_sync_force))
+                            setOnMenuItemClickListener {
+                                activity.showAirConfirmDialog(
+                                    title = getString(R.string.ui_library_sync_force),
+                                    message = getString(R.string.ui_library_sync_force_confirm),
+                                    positiveText = getString(R.string.ui_library_sync_force)
+                                ) { uiActions.forceSyncLibrary() }
+                                true
+                            }
+                            show()
+                        }
+                    }
+                })
+            })
+            addView(normalText(activity, settings.syncUrl.ifBlank { getString(R.string.ui_library_sync_idle) }))
+            addView(normalText(activity, settings.syncStatusText))
+            addView(smallHint(activity, getString(R.string.ui_library_sync_hint)))
+            val syncToggle = actionButton(
+                activity,
+                getString(if (settings.syncEnabled) R.string.ui_library_sync_on else R.string.ui_library_sync_off)
+            ) { }
+            syncToggle.setOnClickListener {
+                val enabled = uiActions.toggleLibrarySync()
+                syncToggle.setText(if (enabled) R.string.ui_library_sync_on else R.string.ui_library_sync_off)
+                playLocalRefreshFeedback(activity, syncToggle, null, getString(R.string.ui_updated))
+            }
+            addView(syncToggle)
+            addView(actionButton(activity, getString(R.string.ui_library_sync_edit)) {
+                uiActions.editLibrarySyncEndpoint()
+            })
+            addView(actionButton(activity, getString(R.string.ui_library_sync_now)) {
+                uiActions.syncLibraryNow()
             })
         }
     )
@@ -111,7 +176,7 @@ internal fun createLyricsSourceOrderCard(
     card(activity) {
         var selectedSources = settings.selectedPlainLyricsSources.distinct()
 
-        addView(bigText(activity, getString(R.string.ui_plain_lyrics_source)))
+        addView(bigText(activity, getString(R.string.ui_manual_online_sources)))
         lateinit var sourceGrid: LyricsSourceOrderRow
         lateinit var refreshSourceOptions: (Boolean) -> Unit
         val sourceButtons = settings.plainLyricsSourceOptions.associateWith { source ->

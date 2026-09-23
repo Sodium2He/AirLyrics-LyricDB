@@ -87,12 +87,12 @@ android {
     ndkVersion = "26.3.11579264"
 
     defaultConfig {
-        applicationId = "com.andsi.airlyrics"
+        applicationId = "com.andsi.airlyrics.lyricdb"
         minSdk = 26
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.2.5"
+        versionCode = 17
+        versionName = "1.2.5-lyricdb.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -174,6 +174,7 @@ android {
     sourceSets {
         getByName("test") {
             resources.directories.add(rootProject.file("lyrics-core/testdata").path)
+            resources.directories.add(rootProject.file("shared/fixtures").path)
         }
     }
 }
@@ -192,6 +193,7 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.json)

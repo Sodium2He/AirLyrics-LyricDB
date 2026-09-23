@@ -16,6 +16,7 @@ internal class MainLaunchers(
     private val onLyricsFileResult: (Uri?) -> Unit,
     private val onFloatingFontFileResult: (Uri?) -> Unit,
     private val onLyricsDirectorySelected: (Uri) -> Unit,
+    private val onLibraryPublishDirectorySelected: (Uri) -> Unit,
     private val onNotificationPermissionResult: (Boolean) -> Unit
 ) {
     private val lyricsDocumentMimeTypes = LyricsFormatCatalog.pickerMimeTypes()
@@ -47,6 +48,11 @@ internal class MainLaunchers(
             if (uri != null) onLyricsDirectorySelected(uri)
         }
 
+    private val libraryPublishDirectoryLauncher =
+        activity.registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri != null) onLibraryPublishDirectorySelected(uri)
+        }
+
     private val notificationPermissionLauncher =
         activity.registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             onNotificationPermissionResult(granted)
@@ -62,6 +68,10 @@ internal class MainLaunchers(
 
     fun selectLyricsDirectory() {
         lyricsDirectoryLauncher.launch(null)
+    }
+
+    fun selectLibraryPublishDirectory() {
+        libraryPublishDirectoryLauncher.launch(null)
     }
 
     fun requestNotificationPermission(permission: String) {

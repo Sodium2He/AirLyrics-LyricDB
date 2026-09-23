@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AirLyrics.Maintainer.Tests/AirLyrics.Maintainer.Tests.csproj" />
+  <Project Path="AirLyrics.Maintainer/AirLyrics.Maintainer.csproj" />
+</Solution>

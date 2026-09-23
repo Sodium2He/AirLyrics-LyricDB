@@ -38,6 +38,7 @@ internal interface SettingsUiHost {
     fun savedLyricsState(): SavedLyricsUiState
     fun lyricsSettingsState(): LyricsSettingsUiState
     fun languageSettingsState(): LanguageSettingsUiState
+    fun showLibrarySyncEditor()
     fun setLanguageMode(mode: String)
     fun areStatusPopupsMuted(): Boolean
     fun setStatusPopupsMuted(muted: Boolean)

@@ -8,12 +8,17 @@ import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
+import android.os.SystemClock
+import com.andsi.airlyrics.media.dump.MediaSessionDump
+import com.andsi.airlyrics.media.dump.MediaSessionDumpFactory
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 
 internal class MediaSessionObserver(
     context: Context,
     private val handler: Handler,
-    private val listener: Listener
+    private val listener: Listener,
+    private val dumpSink: ((MediaSessionDump) -> Unit)? = null,
+    private val elapsedRealtimeProvider: () -> Long = { SystemClock.elapsedRealtime() }
 ) {
     interface Listener {
         fun onCurrentMediaChanged(media: CurrentMediaInfo)
@@ -31,6 +36,7 @@ internal class MediaSessionObserver(
     private val observedControllers = linkedMapOf<MediaSession.Token, ObservedController>()
     private val publishedControllerTokens = mutableMapOf<String, MediaSession.Token>()
     private var activeSessionsListenerRegistered = false
+    private var nextSessionEpoch = 1L
 
     private val activeSessionsChangedListener =
         MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
@@ -102,6 +108,10 @@ internal class MediaSessionObserver(
                 publishBestControllers()
             }
 
+            override fun onQueueChanged(queue: MutableList<MediaSession.QueueItem>?) {
+                publishBestControllers()
+            }
+
             override fun onSessionDestroyed() {
                 removeObservedController(token)
                 publishBestControllers()
@@ -110,7 +120,11 @@ internal class MediaSessionObserver(
 
         runCatching {
             controller.registerCallback(callback, handler)
-            observedControllers[token] = ObservedController(controller, callback)
+            observedControllers[token] = ObservedController(
+                controller = controller,
+                callback = callback,
+                sessionEpoch = nextSessionEpoch++
+            )
         }.onFailure { e ->
             listener.onObservationError("Failed to observe media controller", e)
         }
@@ -139,9 +153,17 @@ internal class MediaSessionObserver(
         val nextControllerTokens = mutableMapOf<String, MediaSession.Token>()
         val mediaToPublish = mutableListOf<CurrentMediaInfo>()
         bestControllers.forEach { (packageName, controller) ->
-            CurrentMediaReader.currentMediaFromController(controller)?.let { media ->
+            val epoch = observedControllers[controller.sessionToken]?.sessionEpoch ?: 0L
+            CurrentMediaReader.currentMediaFromController(controller, epoch)?.let { media ->
                 nextControllerTokens[packageName] = controller.sessionToken
                 mediaToPublish += media
+                dumpSink?.invoke(
+                    MediaSessionDumpFactory.fromController(
+                        controller = controller,
+                        sessionEpoch = epoch,
+                        elapsedRealtimeMs = elapsedRealtimeProvider()
+                    )
+                )
             }
         }
 
@@ -158,6 +180,7 @@ internal class MediaSessionObserver(
 
     private data class ObservedController(
         val controller: MediaController,
-        val callback: MediaController.Callback
+        val callback: MediaController.Callback,
+        val sessionEpoch: Long
     )
 }

@@ -1,6 +1,8 @@
 package com.andsi.airlyrics.ui.pages.floating.sections
 
 import android.widget.LinearLayout
+import android.widget.EditText
+import android.widget.CheckBox
 import com.andsi.airlyrics.R
 import com.andsi.airlyrics.i18n.localizedLyricsContentModeTitle
 import com.andsi.airlyrics.i18n.localizedLyricsLineModeTitle
@@ -12,12 +14,48 @@ import com.andsi.airlyrics.ui.components.smallHint
 import com.andsi.airlyrics.ui.pages.floating.FloatingPageScope
 import com.andsi.airlyrics.ui.pages.floating.floatingSectionTitle
 import com.andsi.airlyrics.ui.pages.floating.openPanel
+import com.andsi.airlyrics.ui.pages.floating.alphaToOpacityPercent
 import com.andsi.airlyrics.core.color.AirColorUtils
 
 internal fun FloatingPageScope.addBehaviorSection(list: LinearLayout) = with(host) {
     list.addView(floatingSectionTitle(getString(R.string.ui_behavior)))
     list.addView(
         settingGrid(
+            trackedFloatingTile(
+                title = getString(R.string.ui_lyric_filter),
+                subtitle = onOff(lyricLineFilter().enabled),
+                iconRes = R.drawable.ic_air_subtitles,
+                onClick = { tile ->
+                    openPanel(tile, getString(R.string.ui_lyric_filter), "") {
+                        val initial = lyricLineFilter()
+                        val enabled = CheckBox(host).apply {
+                            text = getString(R.string.ui_enable_lyric_filter)
+                            isChecked = initial.enabled
+                        }
+                        val empty = CheckBox(host).apply {
+                            text = getString(R.string.ui_filter_empty_lines)
+                            isChecked = initial.filterEmpty
+                        }
+                        val characters = EditText(host).apply {
+                            setText(initial.characters)
+                            hint = getString(R.string.ui_filter_characters)
+                            contentDescription = hint
+                            setSingleLine(true)
+                        }
+                        addView(enabled)
+                        addView(empty)
+                        addView(smallHint(host, getString(R.string.ui_filter_characters_hint)))
+                        addView(characters)
+                        addView(actionButton(host, getString(R.string.ui_apply_lyric_filter)) {
+                            applyLyricLineFilter(initial.copy(
+                                enabled = enabled.isChecked, filterEmpty = empty.isChecked,
+                                characters = characters.text.toString()
+                            ))
+                            refreshFloatingSettingTiles()
+                        })
+                    }
+                }
+            ),
             trackedFloatingTile(
                 title = getString(R.string.ui_display_control),
                 subtitle = floatingDisplaySummary(),
@@ -152,6 +190,8 @@ private fun FloatingPageScope.addSetupSummaryButton(list: LinearLayout) = with(h
         openPanel(summaryButton, getString(R.string.ui_current_setup), "") {
             addView(settingRow(host, getString(R.string.ui_skin), localizedPresetTitle(style().presetName)))
             addView(settingRow(host, getString(R.string.ui_font_size), "${style().textSizeSp.toInt()}sp"))
+            addView(settingRow(host, getString(R.string.ui_translation_font_size), "${style().translationTextSizeSp.toInt()}sp"))
+            addView(settingRow(host, getString(R.string.ui_translation_font_opacity), "${alphaToOpacityPercent(style().translationAlpha)}%"))
             addView(settingRow(host, getString(R.string.ui_font), fontFamilySubtitle()))
             addView(settingRow(host, getString(R.string.ui_font_weight), fontWeightSubtitle()))
             addView(settingRow(host, getString(R.string.ui_font_opacity), fontOpacitySubtitle()))

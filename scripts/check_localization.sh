@@ -154,18 +154,19 @@ if len(resources) == len(resource_paths):
 
 print('Checking changelog policy...')
 allowed_changelog_variants = {
-    Path('app/src/main/assets/changelog_current.txt'),
+    'changelog.txt', 'changelog_current.txt',
+    'changelog.zh-CN.txt', 'changelog_current.zh-CN.txt',
 }
-localized_changelogs = sorted(
-    path for path in Path('app/src/main/assets').glob('changelog_*.txt')
-    if path not in allowed_changelog_variants
-)
-if localized_changelogs:
-    fail(
-        'Localized changelog files are not allowed. '
-        'Use app/src/main/assets/changelog.txt and app/src/main/assets/changelog_current.txt only: '
-        + ', '.join(map(str, localized_changelogs))
-    )
+for path in Path('app/src/main/assets').glob('changelog*.txt'):
+    if path.name not in allowed_changelog_variants:
+        fail(f'Unexpected changelog filename: {path}')
+for base in ['changelog', 'changelog_current']:
+    english = Path(f'app/src/main/assets/{base}.txt')
+    chinese = Path(f'app/src/main/assets/{base}.zh-CN.txt')
+    if not english.exists() or not chinese.exists():
+        fail(f'Missing English or Simplified Chinese changelog: {base}')
+    elif english.read_text(encoding='utf-8').splitlines()[0] != chinese.read_text(encoding='utf-8').splitlines()[0]:
+        fail(f'Changelog version headers differ: {base}')
 
 if errors:
     print('Localization check failed:')

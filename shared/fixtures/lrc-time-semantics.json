@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Display times are raw timestamp plus file offset. User display offset is applied separately.",
+    "Positive [offset] delays lyrics by adding milliseconds to timestamps.",
+    "Old-style bracket word-by-word is not accepted as ELRC."
+  ],
+  "cases": [
+    {
+      "id": "line-lrc-2-and-3-decimals",
+      "format": "line_lrc",
+      "input": "[00:01.12]two\n[00:01.123]three\n[00:01.1]one",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {"time_ms": 1100, "text": "one"},
+        {"time_ms": 1120, "text": "two"},
+        {"time_ms": 1123, "text": "three"}
+      ]
+    },
+    {
+      "id": "line-lrc-offset-applied-once",
+      "format": "line_lrc",
+      "input": "[offset:500]\n[00:01.00]hello\n[00:02.00]world",
+      "file_offset_ms": 500,
+      "expected_display_lines": [
+        {"time_ms": 1500, "text": "hello"},
+        {"time_ms": 2500, "text": "world"}
+      ],
+      "expected_raw_lines": [
+        {"time_ms": 1000, "text": "hello"},
+        {"time_ms": 2000, "text": "world"}
+      ]
+    },
+    {
+      "id": "line-lrc-negative-offset",
+      "format": "line_lrc",
+      "input": "[offset:-250]\n[00:01.00]hello",
+      "file_offset_ms": -250,
+      "expected_raw_lines": [
+        {"time_ms": 1000, "text": "hello"}
+      ],
+      "expected_display_lines": [
+        {"time_ms": 750, "text": "hello"}
+      ]
+    },
+    {
+      "id": "line-lrc-duplicate-timestamps-not-word-by-word",
+      "format": "line_lrc",
+      "input": "[00:10.00][00:12.00]shared",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {"time_ms": 10000, "text": "shared"},
+        {"time_ms": 12000, "text": "shared"}
+      ]
+    },
+    {
+      "id": "line-lrc-translation-slash",
+      "format": "line_lrc",
+      "input": "[00:10.00]君の背中 / 你的背影",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {"time_ms": 10000, "text": "君の背中", "translation": "你的背影"}
+      ]
+    },
+    {
+      "id": "line-lrc-timed-empty",
+      "format": "line_lrc",
+      "input": "[00:01.00]before\n[00:02.00]\n[00:03.00]after",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {"time_ms": 1000, "text": "before"},
+        {"time_ms": 2000, "text": ""},
+        {"time_ms": 3000, "text": "after"}
+      ]
+    },
+    {
+      "id": "unsupported-bracket-word-by-word",
+      "format": "unsupported_bracket_word_by_word",
+      "input": "[00:01.00]你[00:01.20]好[00:01.40]嗎",
+      "word_by_word_accepted": false
+    }
+  ]
+}

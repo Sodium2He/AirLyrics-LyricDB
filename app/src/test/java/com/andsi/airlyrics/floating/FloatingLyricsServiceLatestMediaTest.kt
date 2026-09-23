@@ -45,6 +45,13 @@ import org.robolectric.shadows.ShadowLooper
 @RunWith(RobolectricTestRunner::class)
 @LooperMode(LooperMode.Mode.PAUSED)
 class FloatingLyricsServiceLatestMediaTest {
+    @Test
+    fun pollingAndCallbackEpochsDoNotChangeLyricsIdentity() {
+        val playing = media(OLD_TITLE, sequence = 1L).copy(sessionEpoch = 17L)
+        assertEquals(playing.playbackLyricsKey(), playing.copy(sessionEpoch = 0L, snapshotSequence = 2L).playbackLyricsKey())
+        assertFalse(playing.playbackLyricsKey() == playing.copy(trackNumber = 9).playbackLyricsKey())
+    }
+
     private lateinit var context: Context
     private var serviceController: ServiceController<out FloatingLyricsService>? = null
 

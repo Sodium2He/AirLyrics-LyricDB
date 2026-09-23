@@ -1,127 +1,26 @@
-# Contributing
+# Development
 
 [English](CONTRIBUTING.md) · [简体中文](CONTRIBUTING.zh-CN.md)
 
-Thank you for contributing to AirLyrics.
 
-AirLyrics is stable and actively maintained, with maintenance-focused updates.
+## Build
 
-Bug fixes, compatibility fixes, translation updates, documentation improvements, and small UI text
-polishing are welcome.
+Use the versions declared in Gradle files; the Android Studio bundled JDK and installed SDK can be used. Configure local SDK paths through environment variables or ignored `local.properties`, and keep proxy settings out of tracked files.
 
-For larger features or behavior changes, please open an issue first so the direction can be
-discussed before implementation.
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug -Pairlyrics.skipRustBuild=true
 
-To make review easier, please keep each PR focused on one purpose. Avoid mixing unrelated
-formatting, refactoring and feature changes in the same PR.
-
-If available, images or videos can make the explanation easier to understand.
-
-## Before submitting a PR
-
-With AGP 9.3.x, run Android lint with JDK 21. The project bytecode target remains JVM 17.
-
-```bash
-./gradlew :app:lintDebug -Pairlyrics.skipRustBuild=true
+dotnet test windows/AirLyrics.Maintainer.Tests/AirLyrics.Maintainer.Tests.csproj
+dotnet publish windows/AirLyrics.Maintainer/AirLyrics.Maintainer.csproj -c Release
 ```
 
-Use JDK 17 for the remaining checks:
+The Windows project targets `net10.0-windows`. Skipping Rust is suitable for catalog-only builds and does not verify native online providers; a full native build needs the Rust/NDK toolchain configured by `app/build.gradle.kts`.
 
-```bash
-./gradlew :app:testDebugUnitTest -Pairlyrics.skipRustBuild=true
-./scripts/check_localization.sh
-./scripts/check_architecture_boundaries.sh
-```
+Run `scripts/check_localization.sh` and `scripts/check_architecture_boundaries.sh` with Bash, and `git diff --check`. Test data and rendering assertions should check user behavior, not only that code compiles. Device tests must be run deliberately on a test installation; they can replace app data.
 
-If you changed Android UI or app integration code, you can also build a debug APK without rebuilding
-Rust:
+## Source hygiene
 
-```bash
-./gradlew :app:assembleDebug -Pairlyrics.skipRustBuild=true
-```
 
-If you changed the Rust lyric core, also run:
-
-```bash
-cd lyrics-core
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-cargo test
-```
-
-If your changes affect lyrics parsing, local lyrics storage, lyrics import, Android storage
-permissions, or SAF folder behavior, also run this check on a real device or emulator:
-
-```bash
-./gradlew :app:connectedDebugAndroidTest -Pairlyrics.skipRustBuild=true
-```
-
-Note: `connectedDebugAndroidTest` may uninstall or overwrite the AirLyrics app already installed on
-the device. Please make sure the test device can safely lose its existing app data. A test device or
-emulator is recommended.
-
-## Related guidelines
-
-### Adding a setting
-
-When adding a setting, please connect it through the existing structure instead of storing temporary
-state only in a UI page.
-
-1. Add or extend a settings data model under `settings/model/`.
-2. Add read and save logic in the matching `settings/store/*Store.kt`.
-3. Update the relevant UI page so users can view or change the setting.
-4. Read and apply the setting in the module that actually uses it, such as floating window rendering, lyrics lookup or lyrics storage.
-5. If the setting changes user-visible behavior, please update the related documentation or tests.
-
-Do not read or write raw `SharedPreferences` directly from UI pages or Services unless you are
-creating a new Store.
-
-### Adding a lyrics provider
-
-AirLyrics is a floating lyrics app, not a lyrics search project. Unless the current lyrics sources
-can no longer satisfy normal use, please prefer manual local lyrics import instead of adding more
-online providers.
-
-When a new provider is truly needed, keep the Provider responsibility narrow.
-
-1. Implement `PlainLyricsProvider` under `lyrics/providers/`.
-2. Register it in `LyricsRepository`.
-3. If users need to choose the source manually, expose this Provider in settings.
-4. Handle network failures, no-result cases and ambiguous matches safely.
-5. Unless the app design changes, word-by-word lyrics should remain local-import-first.
-
-Providers only fetch and return lyrics data. They should not update UI directly.
-
-### Localization rules
-
-When changing UI text, please note:
-
-- Do not casually change existing string keys.
-- Keep placeholders such as `%1$s` and `%2$d` unchanged.
-- Keep UI text short.
-- Do not translate song titles, artist names, file names, package names or paths.
-- Run `./scripts/check_localization.sh` before submitting.
-
-### Architecture boundaries
-
-The project currently uses one Gradle `:app` module, so package boundaries are enforced by checks.
-Run `./scripts/check_architecture_boundaries.sh` before submitting refactors. In particular, UI
-code must not import `settings`, `lyrics`, `media`, `floating`, or `app` packages directly.
-
-If you add new string resources, please also provide text for the corresponding languages to avoid
-missing translations in the UI.
-
-## Files not to commit
-
-Please do not commit local build outputs or local machine configuration, for example:
-
-```text
-.gradle/
-.kotlin/
-build/
-app/build/
-lyrics-core/target/
-local.properties
-```
-
-Generated APKs, signing files, local SDK paths and IDE caches should stay out of the repository.
+`applicationId` is `com.andsi.airlyrics.lyricdb`. Keep source namespace `com.andsi.airlyrics` for existing classes/JNI. Increment `versionCode` for published updates and use an upstream-base plus LyricDB suffix in `versionName`. Debug and release signatures differ; use a consistent signing key for upgrades within this fork.

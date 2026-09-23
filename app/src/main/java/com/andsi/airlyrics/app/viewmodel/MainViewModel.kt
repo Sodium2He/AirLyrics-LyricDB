@@ -13,11 +13,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.andsi.airlyrics.R
 import com.andsi.airlyrics.app.contracts.MediaControllerProvider
+import com.andsi.airlyrics.app.controller.CatalogActivationOperation
 import com.andsi.airlyrics.app.controller.CurrentLyricsDeleteOutcome
 import com.andsi.airlyrics.app.controller.FloatingFontImportOutcome
 import com.andsi.airlyrics.app.controller.FloatingFontImportOperation
 import com.andsi.airlyrics.app.controller.FloatingFontImporter
+import com.andsi.airlyrics.app.controller.LocalCatalogActivationOperation
 import com.andsi.airlyrics.app.controller.LyricsController
+import com.andsi.airlyrics.app.sync.AndroidLibrarySyncOperation
+import com.andsi.airlyrics.app.sync.LibrarySyncOperation
 import com.andsi.airlyrics.app.controller.LyricsDocumentValidation
 import com.andsi.airlyrics.app.controller.LyricsImportOutcome
 import com.andsi.airlyrics.app.controller.LyricsOperations
@@ -33,6 +37,9 @@ import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.lyrics.BroadcastLyricsChangedPublisher
 import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
+import com.andsi.airlyrics.lyrics.catalog.LocalCatalogActivateResult
+import com.andsi.airlyrics.lyrics.catalog.SyncOutcome
+import com.andsi.airlyrics.lyrics.catalog.SyncRejectReason
 import com.andsi.airlyrics.media.CurrentMediaReader
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 import com.andsi.airlyrics.media.toSongIdentity
@@ -63,6 +70,8 @@ internal class MainViewModel(
     private val lyricsController: LyricsOperations,
     private val foregroundStateReader: ForegroundSnapshotReader,
     private val floatingFontImporter: FloatingFontImportOperation,
+    private val catalogActivator: CatalogActivationOperation,
+    private val librarySync: LibrarySyncOperation,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel(), MainFloatingState {
     private val _uiState = MutableStateFlow(restoredState())
@@ -158,6 +167,48 @@ internal class MainViewModel(
         uiEffectChannel.trySend(MainUiEffect.SelectLyricsDirectory)
     }
 
+    fun selectLibraryPublishDirectory() {
+        uiEffectChannel.trySend(MainUiEffect.SelectLibraryPublishDirectory)
+    }
+
+    private var librarySyncJob: Job? = null
+
+    fun syncLibraryNow(force: Boolean = false) {
+        if (librarySyncJob?.isActive == true) return
+        showMessage(R.string.ui_library_sync_started)
+        librarySyncJob = viewModelScope.launch {
+            val outcome = withContext(ioDispatcher) {
+                if (force) librarySync.forceSync() else librarySync.sync()
+            }
+            updateState(persist = false) {
+                it.copy(lyricsDirectoryRevision = it.lyricsDirectoryRevision + 1L)
+            }
+            when (outcome) {
+                is SyncOutcome.Activated -> showMessage(R.string.ui_library_catalog_activated)
+                is SyncOutcome.Rejected -> showMessage(
+                    messageRes = when (outcome.reason) {
+                        SyncRejectReason.UNCHANGED -> R.string.ui_sync_same
+                        SyncRejectReason.NOT_WIFI -> R.string.ui_sync_wifi
+                        SyncRejectReason.VPN_UNCONFIRMED -> R.string.ui_sync_vpn
+                        SyncRejectReason.NO_URL -> R.string.ui_library_sync_no_url
+                        else -> com.andsi.airlyrics.i18n.syncFailureResource(outcome.detail)
+                    },
+                    error = outcome.reason != SyncRejectReason.UNCHANGED,
+                    formatArgs = if (
+                        outcome.reason == SyncRejectReason.UNCHANGED ||
+                        outcome.reason == SyncRejectReason.NOT_WIFI ||
+                        outcome.reason == SyncRejectReason.VPN_UNCONFIRMED ||
+                        outcome.reason == SyncRejectReason.NO_URL
+                    ) {
+                        emptyList()
+                    } else {
+                        listOf(listOfNotNull(outcome.reason.name, outcome.detail).joinToString("\n"))
+                    }
+                )
+            }
+        }
+    }
+
     fun selectLyricsFile() {
         uiEffectChannel.trySend(MainUiEffect.SelectLyricsFile)
     }
@@ -179,6 +230,43 @@ internal class MainViewModel(
                 it.copy(lyricsDirectoryRevision = it.lyricsDirectoryRevision + 1L)
             }
             showMessage(R.string.ui_lyrics_save_folder_set)
+        }
+    }
+
+    fun activateLibraryPublishDirectory(uri: Uri) {
+        showMessage(R.string.ui_library_catalog_activating)
+        viewModelScope.launch {
+            val result = withContext(ioDispatcher) {
+                catalogActivator.activateFromTree(uri)
+            }
+            when (result) {
+                is LocalCatalogActivateResult.Activated -> {
+                    updateState(persist = false) {
+                        it.copy(lyricsDirectoryRevision = it.lyricsDirectoryRevision + 1L)
+                    }
+                    showMessage(R.string.ui_library_catalog_activated)
+                }
+                is LocalCatalogActivateResult.Failed -> showMessage(
+                    messageRes = when (result.reason) {
+                        LocalCatalogActivateResult.Reason.MANIFEST_MISSING ->
+                            R.string.ui_library_catalog_manifest_missing
+                        LocalCatalogActivateResult.Reason.MANIFEST_INVALID ->
+                            R.string.ui_library_catalog_manifest_invalid
+                        LocalCatalogActivateResult.Reason.SHARD_MISSING ->
+                            R.string.ui_library_catalog_shard_missing
+                        LocalCatalogActivateResult.Reason.SHARD_SIZE,
+                        LocalCatalogActivateResult.Reason.SHARD_HASH ->
+                            R.string.ui_library_catalog_shard_corrupt
+                        LocalCatalogActivateResult.Reason.LIBRARY_MISMATCH ->
+                            R.string.ui_library_catalog_library_mismatch
+                        LocalCatalogActivateResult.Reason.GENERATION_OLDER ->
+                            R.string.ui_library_catalog_generation_older
+                        LocalCatalogActivateResult.Reason.ACTIVATE_FAILED ->
+                            R.string.ui_library_catalog_failed
+                    },
+                    error = true
+                )
+            }
         }
     }
 
@@ -567,9 +655,12 @@ internal class MainViewModel(
 
     private fun showMessage(
         @androidx.annotation.StringRes messageRes: Int,
-        error: Boolean = false
+        error: Boolean = false,
+        formatArgs: List<String> = emptyList()
     ) {
-        uiEffectChannel.trySend(MainUiEffect.ShowMessage(messageRes, error = error))
+        uiEffectChannel.trySend(
+            MainUiEffect.ShowMessage(messageRes, error = error, formatArgs = formatArgs)
+        )
     }
 
     private fun restoredState(): MainScreenState {
@@ -625,7 +716,9 @@ internal class MainViewModel(
                             lyricsChangedPublisher = BroadcastLyricsChangedPublisher(appContext)
                         ),
                         foregroundStateReader = MainForegroundStateReader(appContext),
-                        floatingFontImporter = FloatingFontImporter(appContext)
+                        floatingFontImporter = FloatingFontImporter(appContext),
+                        catalogActivator = LocalCatalogActivationOperation(appContext),
+                        librarySync = AndroidLibrarySyncOperation(appContext)
                     )
                 }
             }

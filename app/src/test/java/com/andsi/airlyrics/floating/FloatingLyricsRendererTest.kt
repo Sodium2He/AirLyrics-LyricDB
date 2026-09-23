@@ -21,6 +21,25 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class FloatingLyricsRendererTest {
+    @Test
+    fun lineSwitchDoesNotAnimateTheBackgroundView() {
+        val view = FloatingLyricsTextView(ApplicationProvider.getApplicationContext())
+        view.setBackgroundColor(Color.BLACK)
+        val renderer = FloatingLyricsRenderer(
+            textViewProvider = { view },
+            switchAnimationModeProvider = { LyricsSwitchAnimationMode.FADE }
+        )
+        renderer.updatePlayback(1000L, false)
+        renderer.parseAndShow("[00:01.00]one\n[00:02.00]two", emptyText = "empty")
+        renderer.updatePlayback(2000L, false)
+        renderer.tick()
+        assertEquals("two", view.text.toString())
+        assertEquals(1f, view.alpha)
+        assertEquals(0f, view.translationY)
+        assertEquals(1f, view.scaleX)
+        view.resetTextAnimation()
+    }
+
     private lateinit var context: Context
 
     @Before
@@ -29,25 +48,40 @@ class FloatingLyricsRendererTest {
     }
 
     @Test
-    fun updatePlayback_ignoresSmallStaleBacktrackWhilePlaying() {
+    fun updatePlayback_acceptsSmallSeekWhilePlaying() {
         var now = 10_000L
-        val renderer = renderer(uptimeMillisProvider = { now })
+        val renderer = renderer(monotonicNowMsProvider = { now })
 
         renderer.updatePlayback(positionMs = 1_000L, isPlaying = true)
         now += 700L
         assertEquals(1_700L, renderer.getEstimatedPositionMs())
 
         renderer.updatePlayback(positionMs = 1_200L, isPlaying = true)
-        assertEquals(1_700L, renderer.getEstimatedPositionMs())
+        assertEquals(1_200L, renderer.getEstimatedPositionMs())
 
         now += 100L
-        assertEquals(1_800L, renderer.getEstimatedPositionMs())
+        assertEquals(1_300L, renderer.getEstimatedPositionMs())
+    }
+
+    @Test
+    fun updateClock_usesSpeedFromOriginalAnchor() {
+        var now = 5_000L
+        val renderer = renderer(monotonicNowMsProvider = { now })
+        renderer.updateClock(
+            com.andsi.airlyrics.core.time.PlaybackClockSnapshot.playing(
+                positionBaseMs = 10_000L,
+                anchorElapsedRealtimeMs = 2_000L,
+                playbackSpeed = 1.5f
+            )
+        )
+        now = 6_000L
+        assertEquals(16_000L, renderer.getEstimatedPositionMs())
     }
 
     @Test
     fun updatePlayback_acceptsLargeSeekAndPausedPosition() {
         var now = 10_000L
-        val renderer = renderer(uptimeMillisProvider = { now })
+        val renderer = renderer(monotonicNowMsProvider = { now })
 
         renderer.updatePlayback(positionMs = 10_000L, isPlaying = true)
         now += 3_000L
@@ -113,11 +147,11 @@ class FloatingLyricsRendererTest {
 
         assertTrue(renderer.isWordByWordActive())
         assertEquals("你好", textView.text.toString())
-        assertTrue(textView.text.highlightSpans().isEmpty())
+        assertTrue(textView.text.highlightSpans().all { Color.alpha(it.foregroundColor) == 153 })
     }
 
     @Test
-    fun matchingWordByWordLine_highlightsOnlyCurrentOriginalAndKeepsTranslation() {
+    fun matchingWordByWordLine_highlightsBothLanguagesWithIndependentOpacity() {
         val textView = TextView(context).apply { setTextColor(Color.WHITE) }
         val renderer = renderer(
             textView = textView,
@@ -140,7 +174,9 @@ class FloatingLyricsRendererTest {
             .first { it.foregroundColor == Color.MAGENTA }
         assertEquals(0, text.getSpanStart(completedSpan))
         assertEquals(2, text.getSpanEnd(completedSpan))
-        assertTrue(text.highlightSpans().all { text.getSpanEnd(it) <= "Hello".length })
+        val translated = text.highlightSpans().filter { text.getSpanStart(it) >= "Hello\n".length }
+        assertTrue(translated.isNotEmpty())
+        assertTrue(translated.all { Color.alpha(it.foregroundColor) == 153 })
     }
 
     @Test
@@ -202,7 +238,7 @@ class FloatingLyricsRendererTest {
         lineMode: LyricsLineDisplayMode = LyricsLineDisplayMode.CURRENT_ONLY,
         wordByWordEnabled: Boolean = false,
         highlightColor: Int = Color.MAGENTA,
-        uptimeMillisProvider: () -> Long = { 10_000L }
+        monotonicNowMsProvider: () -> Long = { 10_000L }
     ): FloatingLyricsRenderer {
         return FloatingLyricsRenderer(
             textViewProvider = { textView },
@@ -212,7 +248,7 @@ class FloatingLyricsRendererTest {
             wordByWordLyricsEnabledProvider = { wordByWordEnabled },
             wordByWordHighlightColorProvider = { highlightColor },
             noTranslationTextProvider = { "no translation" },
-            uptimeMillisProvider = uptimeMillisProvider
+            monotonicNowMsProvider = monotonicNowMsProvider
         )
     }
 

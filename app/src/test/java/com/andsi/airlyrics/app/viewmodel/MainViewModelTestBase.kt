@@ -2,6 +2,7 @@ package com.andsi.airlyrics.app.viewmodel
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import com.andsi.airlyrics.app.controller.CatalogActivationOperation
 import com.andsi.airlyrics.app.controller.CurrentLyricsDeleteOutcome
 import com.andsi.airlyrics.app.controller.FloatingFontImportOperation
 import com.andsi.airlyrics.app.controller.FloatingFontImportOutcome
@@ -10,8 +11,12 @@ import com.andsi.airlyrics.app.controller.LyricsImportAvailability
 import com.andsi.airlyrics.app.controller.LyricsImportOutcome
 import com.andsi.airlyrics.app.controller.LyricsOperations
 import com.andsi.airlyrics.app.controller.OnlineLyricsSearchOutcome
+import com.andsi.airlyrics.app.sync.LibrarySyncOperation
 import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
+import com.andsi.airlyrics.lyrics.catalog.LocalCatalogActivateResult
+import com.andsi.airlyrics.lyrics.catalog.SyncOutcome
+import com.andsi.airlyrics.lyrics.catalog.SyncRejectReason
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 import com.andsi.airlyrics.testutil.MainDispatcherRule
@@ -34,6 +39,12 @@ abstract class MainViewModelTestBase {
         foreground: ForegroundSnapshotReader = FakeForegroundSnapshotReader(),
         fontImporter: FloatingFontImportOperation =
             FakeFontImportOperation(FloatingFontImportOutcome.ReadFailed),
+        catalogActivator: CatalogActivationOperation = CatalogActivationOperation {
+            LocalCatalogActivateResult.Failed(LocalCatalogActivateResult.Reason.MANIFEST_MISSING)
+        },
+        librarySync: LibrarySyncOperation = LibrarySyncOperation {
+            SyncOutcome.Rejected(SyncRejectReason.NO_URL)
+        },
         ioDispatcher: CoroutineDispatcher = mainDispatcherRule.dispatcher
     ): MainViewModel {
         return MainViewModel(
@@ -41,6 +52,8 @@ abstract class MainViewModelTestBase {
             lyricsController = lyrics,
             foregroundStateReader = foreground,
             floatingFontImporter = fontImporter,
+            catalogActivator = catalogActivator,
+            librarySync = librarySync,
             ioDispatcher = ioDispatcher
         )
     }

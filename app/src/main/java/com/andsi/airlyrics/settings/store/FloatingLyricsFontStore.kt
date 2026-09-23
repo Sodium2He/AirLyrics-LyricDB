@@ -294,7 +294,19 @@ object FloatingLyricsFontStore {
                 if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
             }
         }.getOrNull()
-        return sanitizeDisplayName(queriedName ?: uri.lastPathSegment.orEmpty())
+        return sanitizeDisplayName(
+            queriedName?.takeIf { it.isNotBlank() } ?: fileUriDisplayName(uri)
+        )
+    }
+
+    private fun fileUriDisplayName(uri: Uri): String {
+        if (uri.scheme.equals("file", ignoreCase = true)) {
+            val path = uri.path
+            if (!path.isNullOrBlank()) {
+                return File(path).name
+            }
+        }
+        return uri.lastPathSegment.orEmpty()
     }
 
     private fun documentSize(context: Context, uri: Uri): Long? {
@@ -319,6 +331,7 @@ object FloatingLyricsFontStore {
     private fun sanitizeDisplayName(value: String): String {
         return value
             .substringAfterLast('/')
+            .substringAfterLast('\\')
             .filterNot { it.isISOControl() }
             .trim()
             .take(120)

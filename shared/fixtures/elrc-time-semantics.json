@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "ELRC uses <mm:ss.xx> word tags. Bracket inline fragments are not ELRC.",
+    "Missing last end times may be inferred; that must be reported as a diagnostic."
+  ],
+  "cases": [
+    {
+      "id": "elrc-basic-last-character",
+      "format": "elrc",
+      "input": "[00:10.00]<00:10.00>あ<00:10.20>い<00:10.40>う",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {
+          "start_ms": 10000,
+          "text": "あいう",
+          "segments": [
+            {"text": "あ", "start_ms": 10000},
+            {"text": "い", "start_ms": 10200},
+            {"text": "う", "start_ms": 10400}
+          ]
+        }
+      ],
+      "expect_last_character": "う"
+    },
+    {
+      "id": "elrc-2-and-3-decimals",
+      "format": "elrc",
+      "input": "[00:01.12]<00:01.12>two<00:01.123>three",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {
+          "start_ms": 1120,
+          "text": "twothree",
+          "segments": [
+            {"text": "two", "start_ms": 1120},
+            {"text": "three", "start_ms": 1123}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "elrc-missing-end-inferred",
+      "format": "elrc",
+      "input": "[00:10.00]<00:10.00>end",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {
+          "start_ms": 10000,
+          "end_ms": 10400,
+          "text": "end",
+          "segments": [
+            {"text": "end", "start_ms": 10000, "end_ms": 10400}
+          ]
+        }
+      ],
+      "diagnostics_contain": ["inferred_end_time"]
+    },
+    {
+      "id": "elrc-empty-segment-diagnosed",
+      "format": "elrc",
+      "input": "[00:10.00]<00:10.00><00:10.20>word",
+      "file_offset_ms": 0,
+      "expected_lines": [
+        {
+          "start_ms": 10000,
+          "text": "word",
+          "segments": [
+            {"text": "word", "start_ms": 10200}
+          ]
+        }
+      ],
+      "diagnostics_contain": ["empty_segment"]
+    },
+    {
+      "id": "elrc-offset-applied-once",
+      "format": "elrc",
+      "input": "[offset:+1000]\n[00:10.00]<00:10.00>hi",
+      "file_offset_ms": 1000,
+      "expected_raw_start_ms": 10000,
+      "expected_display_start_ms": 11000
+    },
+    {
+      "id": "elrc-translation-same-timestamp",
+      "format": "elrc",
+      "input": "[00:10.00]<00:10.00>君<00:10.20>の<00:10.40>背中\n[00:10.00]你的背影",
+      "file_offset_ms": 0,
+      "expected_plain_lrc": "[00:10.00]君の背中 / 你的背影",
+      "has_translation": true
+    },
+    {
+      "id": "elrc-overlapping-same-start",
+      "format": "elrc",
+      "input": "[00:10.00]<00:10.00>one\n[00:10.00]<00:10.00>two",
+      "file_offset_ms": 0,
+      "expected_line_count": 2,
+      "diagnostics_contain": ["overlapping_or_duplicate_start"]
+    }
+  ]
+}

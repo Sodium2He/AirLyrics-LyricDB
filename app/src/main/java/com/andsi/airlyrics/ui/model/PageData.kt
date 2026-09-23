@@ -27,7 +27,8 @@ internal data class CurrentLyricsUiState(
     val canRemoveAllLyrics: Boolean,
     val hasLocalWordByWordLyrics: Boolean,
     val wordByWordLyricsEnabled: Boolean,
-    val offsetMs: Long
+    val offsetMs: Long,
+    val catalogOnly: Boolean = false
 )
 
 internal data class LocalLyricsUiItem(
@@ -65,7 +66,11 @@ internal data class LyricsSettingsUiState(
     val plainLyricsSourceOptions: List<PlainLyricsSearchSource>,
     val autoSearchOnline: Boolean,
     val autoSaveLocal: Boolean,
-    val lyricsDirectoryPath: String
+    val lyricsDirectoryPath: String,
+    val catalogActiveText: String,
+    val syncEnabled: Boolean,
+    val syncUrl: String,
+    val syncStatusText: String
 )
 
 internal data class LanguageOptionUiItem(

@@ -1,12 +1,7 @@
-v1.2.5 - 2026-09-10
+v1.2.5-lyricdb.1 - 2026-09-22
 
-Added
-- Limit floating lyrics to selected apps with Display scope on Android 10 and later.
-- Import line-timed and word-timed TTML lyrics, including common Apple Music and AMLL variants.
-
-Improved
-- Permission settings now show clearer status, purpose, and actions.
-- AirLyrics follows the system light or dark theme until you choose one.
-
-Fixed
-- Display scope status is more reliable, refresh results stay visible, and locked devices do less background work.
+- Song database with Windows publishing and WebDAV sync.
+- Improved bilingual karaoke and matching overlay/preview styling.
+- Translation size and opacity controls.
+- Long-line scrolling, invalid-line filtering and background resizing animations.
+- Separate package for installation alongside AirLyrics.

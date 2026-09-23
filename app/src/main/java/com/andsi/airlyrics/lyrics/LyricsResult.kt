@@ -13,7 +13,12 @@ data class LyricsProviderResult(
     val matchedTitle: String = "",
     val matchedArtist: String = "",
     val matchedAlbum: String = "",
-    val matchedDurationMs: Long = 0L
+    val matchedDurationMs: Long = 0L,
+    val catalogGeneration: Long? = null,
+    val matchKind: String? = null,
+    val translationWordByWordLines: List<WordByWordLine> = emptyList(),
+    val catalogRawText: String? = null,
+    val catalogFormat: String? = null
 )
 
 internal fun LyricsProviderResult.hasUsableLyrics(): Boolean {

@@ -25,7 +25,7 @@ import com.andsi.airlyrics.ui.theme.colorTextMuted
 import com.andsi.airlyrics.ui.theme.colorTextStrong
 import com.andsi.airlyrics.design.tokens.AirUiTokens
 
-internal fun pageContainer(activity: MainUiHost, animateChanges: Boolean = true): LinearLayout  = with(activity) pageContainer@ {
+internal fun pageContainer(activity: MainUiHost, animateChanges: Boolean = false): LinearLayout  = with(activity) pageContainer@ {
     return LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         if (animateChanges) {
@@ -35,7 +35,7 @@ internal fun pageContainer(activity: MainUiHost, animateChanges: Boolean = true)
     }
 }
 
-internal fun scroll(activity: MainUiHost, child: View, animateChildren: Boolean = true): ScrollView  = with(activity) scroll@ {
+internal fun scroll(activity: MainUiHost, child: View, animateChildren: Boolean = false): ScrollView  = with(activity) scroll@ {
     return ScrollView(this).apply {
         isFillViewport = false
         addView(child)
@@ -257,13 +257,14 @@ internal fun spacer(activity: MainUiHost, height: Int): View  = with(activity) s
 }
 
 internal fun animatePageEnter(activity: MainUiHost, view: View, fromRight: Boolean) = with(activity) animatePageEnter@ {
-    val distance = dp(AirUiTokens.Layout.PageEnterDistance).toFloat() * if (fromRight) 1f else -1f
+    view.animate().cancel()
     view.alpha = 0f
-    view.translationX = distance
+    view.translationX = 0f
     view.animate()
         .alpha(AirUiTokens.Motion.RestAlpha)
         .translationX(0f)
         .setDuration(AirUiTokens.Motion.PageEnterMs)
+        .withLayer()
         .setInterpolator(DecelerateInterpolator())
         .start()
 }

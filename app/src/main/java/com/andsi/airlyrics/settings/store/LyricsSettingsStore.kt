@@ -9,6 +9,28 @@ import com.andsi.airlyrics.core.model.LyricsSettings
 import com.andsi.airlyrics.core.prefs.prefs
 
 object LyricsSettingsStore {
+    fun getLineFilter(context: Context) = com.andsi.airlyrics.core.model.LyricLineFilter(
+        enabled = store(context).getBoolean("line_filter_enabled", false),
+        characters = store(context).getString("line_filter_characters", ".·・…").orEmpty(),
+        filterEmpty = store(context).getBoolean("line_filter_empty", true)
+    )
+
+    fun setLineFilter(context: Context, filter: com.andsi.airlyrics.core.model.LyricLineFilter) {
+        store(context).edit {
+            putBoolean("line_filter_enabled", filter.enabled)
+            putString("line_filter_characters", filter.characters)
+            putBoolean("line_filter_empty", filter.filterEmpty)
+        }
+    }
+
+    const val ACTION_STATUS_HINTS_CHANGED = "com.andsi.airlyrics.STATUS_HINTS_CHANGED"
+    fun areStatusHintsEnabled(context: Context): Boolean = store(context).getBoolean("show_status_hints", false)
+
+    fun setStatusHintsEnabled(context: Context, enabled: Boolean) {
+        store(context).setBoolean("show_status_hints", enabled)
+        context.sendBroadcast(android.content.Intent(ACTION_STATUS_HINTS_CHANGED).setPackage(context.packageName))
+    }
+
     private const val PREFS_NAME = "lyrics_settings"
     private const val KEY_PLAIN_LYRICS_SOURCE_ORDER = "lyrics_source_order"
     // Legacy single-source key. Keep it as a migration input and downgrade-compatible mirror.

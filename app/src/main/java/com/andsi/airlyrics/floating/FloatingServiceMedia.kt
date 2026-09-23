@@ -1,6 +1,7 @@
 package com.andsi.airlyrics.floating
 
 import android.content.ComponentName
+import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import com.andsi.airlyrics.R
 import com.andsi.airlyrics.core.model.SongIdentity
@@ -8,9 +9,16 @@ import com.andsi.airlyrics.media.CurrentMediaReader
 import com.andsi.airlyrics.media.MediaNotificationListenerService
 import com.andsi.airlyrics.media.MediaSourceStore
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
+import com.andsi.airlyrics.media.toPlaybackClockSnapshot
 import com.andsi.airlyrics.media.toSongIdentity
+import com.andsi.airlyrics.lyrics.catalog.LibraryCatalog
+import com.andsi.airlyrics.lyrics.catalog.LyricsPrefetchCache
+import com.andsi.airlyrics.lyrics.catalog.PrefetchQueueItem
+import com.andsi.airlyrics.lyrics.catalog.QueuePrefetchPlanner
+import com.andsi.airlyrics.lyrics.catalog.TrackObservation
 import com.andsi.airlyrics.settings.store.LyricsOffsetStore
 import com.andsi.airlyrics.settings.store.QuickFloatingStore
+import java.util.concurrent.Executors
 
 internal fun FloatingLyricsService.shouldObserveSelectedMedia(): Boolean {
     return isWindowControllerReady() &&
@@ -65,14 +73,22 @@ internal fun FloatingLyricsService.applyCurrentMediaInfo(media: CurrentMediaInfo
     syncHandler.removeCallbacks(mediaRestoreRunnable)
     mediaRestoreAttempt = 0
 
-    renderer.updatePlayback(
-        positionMs = media.positionMs,
-        isPlaying = media.isPlaying
-    )
+    val snapshot = media.toPlaybackClockSnapshot().let { clock ->
+        if (clock.isPlaying &&
+            clock.positionKnown &&
+            (clock.anchorElapsedRealtimeMs == null || clock.anchorElapsedRealtimeMs <= 0L)
+        ) {
+            clock.copy(anchorElapsedRealtimeMs = SystemClock.elapsedRealtime())
+        } else {
+            clock
+        }
+    }
+    renderer.updateClock(snapshot)
     renderer.setLyricsOffset(LyricsOffsetStore.getOffsetMs(this, media.toSongIdentity()))
     applyAutoHideWhenPaused()
 
     val playbackLyricsKey = media.playbackLyricsKey()
+    refreshQueuePrefetch(media)
     if (automaticOnlineLookupSuppressedSong != null &&
         !isAutomaticOnlineLookupSuppressed(media)
     ) {
@@ -92,9 +108,9 @@ internal fun FloatingLyricsService.applyCurrentMediaInfo(media: CurrentMediaInfo
 }
 
 internal fun CurrentMediaInfo.playbackLyricsKey(): PlaybackLyricsKey {
-    val songKey = toSongIdentity().storageKey()
-    val normalizedAlbum = SongIdentity.normalizeText(album)
-    return PlaybackLyricsKey("$sourcePackage|$songKey|$normalizedAlbum")
+    val metadataKey = LyricsPrefetchCache().key(toLibraryObservation(""))
+    // Polling has no observer epoch; callbacks do. This is not a track change.
+    return PlaybackLyricsKey("${sourcePackage.length}:$sourcePackage|$metadataKey")
 }
 
 internal fun CurrentMediaInfo.lyricsLookupRequestKey(nonce: String? = null): LyricsLookupRequestKey {
@@ -156,12 +172,11 @@ internal fun FloatingLyricsService.handleMediaSourceLost(sourcePackage: String) 
     if (sourcePackage != selectedSourcePackage) return
     if (currentMedia.isEmpty || currentMedia.sourcePackage != sourcePackage) return
 
-    val pausedPosition = renderer.getEstimatedPositionMs()
+    renderer.freezePlayback()
     currentMedia = currentMedia.copy(
         isPlaying = false,
-        positionMs = pausedPosition
+        positionMs = renderer.getEstimatedPositionMs()
     )
-    renderer.updatePlayback(positionMs = pausedPosition, isPlaying = false)
     renderer.refresh()
     applyAutoHideWhenPaused()
 }
@@ -200,4 +215,86 @@ private fun FloatingLyricsService.shouldAcceptMediaUpdate(sourcePackage: String)
 
     val selectedPackage = selectedSourcePackage ?: return false
     return sourcePackage == selectedPackage
+}
+
+internal fun CurrentMediaInfo.toLibraryObservation(observationToken: String): TrackObservation {
+    return TrackObservation(
+        title = title.takeIf { it.isNotBlank() },
+        artist = artist.takeIf { it.isNotBlank() },
+        album = album.takeIf { it.isNotBlank() },
+        albumArtist = albumArtist?.takeIf { it.isNotBlank() },
+        durationMs = durationMs.takeIf { durationKnown && it > 0L },
+        durationKnown = durationKnown && durationMs > 0L,
+        trackNumber = trackNumber,
+        discNumber = discNumber,
+        genre = genre?.takeIf { it.isNotBlank() },
+        observationToken = observationToken
+    )
+}
+
+internal fun CurrentMediaInfo.toPrefetchQueueItems(): List<PrefetchQueueItem> {
+    return queue.map { item ->
+        PrefetchQueueItem(
+            queueId = item.queueId,
+            title = item.title,
+            artist = item.artist,
+            album = item.album,
+            albumArtist = item.albumArtist,
+            durationMs = item.durationMs,
+            durationKnown = item.durationKnown,
+            trackNumber = item.trackNumber,
+            discNumber = item.discNumber
+        )
+    }
+}
+
+internal fun FloatingLyricsService.refreshQueuePrefetch(media: CurrentMediaInfo) {
+    val items = media.toPrefetchQueueItems()
+    val fingerprint = QueuePrefetchPlanner.fingerprint(
+        sessionEpoch = media.sessionEpoch,
+        items = items,
+        activeQueueItemId = media.queueItemId
+    )
+    if (fingerprint != queueFingerprint) {
+        lyricsPrefetchCache.clear()
+        queueFingerprint = fingerprint
+    }
+    scheduleQueuePrefetch(media, items)
+}
+
+internal fun FloatingLyricsService.scheduleQueuePrefetch(
+    media: CurrentMediaInfo,
+    items: List<PrefetchQueueItem>
+) {
+    val nextQueue = QueuePrefetchPlanner.nextFromQueue(items, media.queueItemId)
+    val currentObservation = media.toLibraryObservation("prefetch-current")
+    prefetchExecutor.execute {
+        LibraryCatalog.openIfPresent(this)?.use { catalog ->
+            val targets = if (nextQueue.isNotEmpty()) {
+                nextQueue.map { it.toObservation("prefetch-queue") }
+            } else {
+                catalog.albumNeighbors(currentObservation).map { ref ->
+                    TrackObservation(
+                        title = ref.title,
+                        artist = ref.artist,
+                        album = ref.album,
+                        albumArtist = ref.albumArtist,
+                        durationMs = ref.durationMs,
+                        durationKnown = ref.durationMs != null && ref.durationMs > 0L,
+                        trackNumber = ref.trackNumber,
+                        discNumber = ref.disc
+                    )
+                }
+            }
+            targets.forEach { observation ->
+                if (lyricsPrefetchCache.get(observation) != null) return@forEach
+                when (val outcome = catalog.lookup(observation)) {
+                    is com.andsi.airlyrics.lyrics.catalog.CatalogLookupOutcome.Finish -> {
+                        outcome.result?.let { lyricsPrefetchCache.put(observation, it) }
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
 }

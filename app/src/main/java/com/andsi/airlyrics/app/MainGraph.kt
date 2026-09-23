@@ -103,6 +103,7 @@ internal class MainGraph(
         onLyricsFileResult = viewModel::handleLyricsFileResult,
         onFloatingFontFileResult = viewModel::importFloatingFont,
         onLyricsDirectorySelected = { uri -> lyricsWorkflow.handleLyricsDirectorySelected(uri) },
+        onLibraryPublishDirectorySelected = viewModel::activateLibraryPublishDirectory,
         onNotificationPermissionResult = ::handleNotificationPermissionResult
     )
 
@@ -504,13 +505,19 @@ internal class MainGraph(
             MainUiEffect.OpenUsageAccessSettings ->
                 PermissionHelper.openUsageAccessSettings(activity)
             MainUiEffect.SelectLyricsDirectory -> launchers.selectLyricsDirectory()
+            MainUiEffect.SelectLibraryPublishDirectory -> launchers.selectLibraryPublishDirectory()
             MainUiEffect.SelectLyricsFile -> launchers.selectLyricsFile()
             MainUiEffect.SelectFloatingFontFile -> launchers.selectFloatingFontFile()
             is MainUiEffect.ShowMessage -> {
-                if (effect.error) {
-                    feedback.showError(effect.messageRes)
+                val text = if (effect.formatArgs.isEmpty()) {
+                    activity.getString(effect.messageRes)
                 } else {
-                    feedback.showMessage(effect.messageRes)
+                    activity.getString(effect.messageRes, *effect.formatArgs.toTypedArray())
+                }
+                if (effect.error) {
+                    feedback.showError(text)
+                } else {
+                    feedback.showMessage(text)
                 }
             }
             is MainUiEffect.ShowImportFormatError -> {

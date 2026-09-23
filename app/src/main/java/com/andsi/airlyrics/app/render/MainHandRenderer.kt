@@ -152,7 +152,7 @@ internal class MainHandRenderer(
         }
 
         val pageView = when (state.currentPage) {
-            Page.MEDIA -> createMediaPage(host, animateContent = animateContent)
+            Page.MEDIA -> createMediaPage(host, animateContent = false)
             Page.FLOATING -> createFloatingPage(host)
             Page.SETTINGS -> createSettingsPage(host)
         }

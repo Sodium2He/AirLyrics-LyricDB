@@ -1,7 +1,10 @@
 package com.andsi.airlyrics.floating
 
 import android.graphics.Color
+import com.andsi.airlyrics.core.model.FloatingLyricsStyle
+import com.andsi.airlyrics.core.text.styledLyricText
 import android.os.SystemClock
+import com.andsi.airlyrics.core.time.PlaybackClockSnapshot
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -29,43 +32,58 @@ class FloatingLyricsRenderer(
     private val wordByWordLyricsEnabledProvider: () -> Boolean = { false },
     private val wordByWordHighlightColorProvider: () -> Int = { Color.rgb(120, 220, 255) },
     private val noTranslationTextProvider: () -> String = { "No translation for this lyric" },
-    private val uptimeMillisProvider: () -> Long = { SystemClock.uptimeMillis() }
+    private val monotonicNowMsProvider: () -> Long = { SystemClock.elapsedRealtime() },
+    private val styleProvider: () -> FloatingLyricsStyle? = { null }
 ) {
     private var currentPlainLines: List<LrcLine> = emptyList()
     private var currentWordByWordLines: List<WordByWordLine> = emptyList()
-    private var currentPositionMs: Long = 0L
-    private var lastPositionUpdateUptimeMs: Long = 0L
-    private var currentIsPlaying: Boolean = false
+    private var currentTranslationWordByWordLines: List<WordByWordLine> = emptyList()
+    private var clock: PlaybackClockSnapshot = PlaybackClockSnapshot.Unknown
     private var lyricsOffsetMs: Long = 0L
     private var lastRenderedText: String? = null
 
     fun updatePlayback(positionMs: Long, isPlaying: Boolean) {
-        val nowUptimeMs = uptimeMillisProvider()
-        val incomingPositionMs = positionMs.coerceAtLeast(0L)
-        val estimatedBeforeUpdateMs = getEstimatedPlaybackPositionMs(nowUptimeMs)
-        currentPositionMs = if (isStalePlayingBacktrack(incomingPositionMs, isPlaying, estimatedBeforeUpdateMs)) {
-            estimatedBeforeUpdateMs
-        } else {
-            incomingPositionMs
-        }
-        currentIsPlaying = isPlaying
-        lastPositionUpdateUptimeMs = nowUptimeMs
+        updateClock(
+            PlaybackClockSnapshot(
+                positionBaseMs = positionMs,
+                positionKnown = true,
+                anchorElapsedRealtimeMs = monotonicNowMsProvider(),
+                playbackSpeed = if (isPlaying) 1f else 0f,
+                isPlaying = isPlaying,
+                durationMs = clock.durationMs,
+                durationKnown = clock.durationKnown
+            )
+        )
+    }
+
+    fun updateClock(snapshot: PlaybackClockSnapshot) {
+        clock = snapshot
+    }
+
+    fun freezePlayback() {
+        val position = clock.positionAt(monotonicNowMsProvider()).positionMs ?: return
+        clock = PlaybackClockSnapshot.frozen(
+            positionBaseMs = position,
+            durationMs = clock.durationMs,
+            durationKnown = clock.durationKnown
+        )
     }
 
     fun clear() {
         currentPlainLines = emptyList()
         currentWordByWordLines = emptyList()
-        currentPositionMs = 0L
-        lastPositionUpdateUptimeMs = 0L
-        currentIsPlaying = false
+        currentTranslationWordByWordLines = emptyList()
+        clock = PlaybackClockSnapshot.Unknown
         lyricsOffsetMs = 0L
         lastRenderedText = null
         resetTextAnimationState()
     }
 
     fun show(text: String) {
+        if (currentPlainLines.isEmpty() && currentWordByWordLines.isEmpty() && lastRenderedText == text) return
         currentPlainLines = emptyList()
         currentWordByWordLines = emptyList()
+        currentTranslationWordByWordLines = emptyList()
         setTextImmediately(text)
     }
 
@@ -83,10 +101,12 @@ class FloatingLyricsRenderer(
         plainLrc: String,
         translatedLrc: String? = null,
         wordByWordLines: List<WordByWordLine> = emptyList(),
-        emptyText: String
+        emptyText: String,
+        translationWordByWordLines: List<WordByWordLine> = emptyList()
     ) {
         currentPlainLines = LrcParser.parseWithTranslation(plainLrc, translatedLrc)
         currentWordByWordLines = wordByWordLines
+        currentTranslationWordByWordLines = translationWordByWordLines
 
         val text = if (currentPlainLines.isNotEmpty() || currentWordByWordLines.isNotEmpty()) {
             renderAtCurrentPosition().takeIf { it.isNotBlankText() }
@@ -107,7 +127,7 @@ class FloatingLyricsRenderer(
     }
 
     fun isWordByWordActive(): Boolean {
-        return wordByWordLyricsEnabledProvider() && currentWordByWordLines.isNotEmpty()
+        return wordByWordLyricsEnabledProvider() && (currentWordByWordLines.isNotEmpty() || currentTranslationWordByWordLines.isNotEmpty())
     }
 
     fun refresh() {
@@ -122,14 +142,7 @@ class FloatingLyricsRenderer(
         val positionMs = getEstimatedPositionMs()
         val currentIndex = LrcParser.findCurrentIndex(currentPlainLines, positionMs)
 
-        if (currentIndex != null) {
-            if (wordByWordLyricsEnabledProvider() && currentWordByWordLines.isNotEmpty()) {
-                renderTextAtIndexWithWordByWord(currentIndex, positionMs)
-                    .takeIf { it.isNotBlankText() }
-                    ?.let { return it }
-            }
-            return renderPlainTextAtIndex(currentIndex)
-        }
+        if (currentIndex != null) return renderTextAtIndex(currentIndex, positionMs)
 
         // Safety fallback for unusual payloads. Word-by-word lyrics are independent segment
         // timing data, so they can still render when the accompanying plain LRC has no usable line.
@@ -146,22 +159,11 @@ class FloatingLyricsRenderer(
     }
 
     private fun renderPlainTextAtIndex(index: Int): CharSequence {
-        return PlainLyricsDisplayFormatter.format(
-            plainLines = currentPlainLines,
-            currentIndex = index,
-            contentMode = contentModeProvider(),
-            lineMode = lineModeProvider(),
-            noTranslationText = noTranslationTextProvider()
-        )
+        return renderTextAtIndex(index, getEstimatedPositionMs())
     }
 
-    /**
-     * Renders exactly the same content modes as [PlainLyricsDisplayFormatter], but replaces only
-     * the current original line with wrap-safe word-by-word highlighting when a matching local word-by-word line exists.
-     * This keeps “original only / translation only / original + translation” independent of
-     * word-by-word highlighting and prevents timed text from leaking translations into original-only mode.
-     */
-    private fun renderTextAtIndexWithWordByWord(currentIndex: Int, positionMs: Long): CharSequence {
+    /** One presentation path for plain and timed bilingual text. */
+    private fun renderTextAtIndex(currentIndex: Int, positionMs: Long): CharSequence {
         if (currentPlainLines.isEmpty() || currentIndex !in currentPlainLines.indices) return ""
 
         val indexes = visiblePlainLineIndexes(currentIndex)
@@ -169,47 +171,79 @@ class FloatingLyricsRenderer(
 
         val renderedLines = mutableListOf<CharSequence>()
         val contentMode = contentModeProvider()
+        val style = styleProvider()
+        val baseColor = textViewProvider()?.currentTextColor ?: Color.WHITE
+        val translationAlpha = style?.translationAlpha ?: 153
+
+        fun styled(text: CharSequence, translation: Boolean, current: Boolean) = styledLyricText(
+            text, translation, current, baseColor,
+            style?.let { it.translationTextSizeSp / it.textSizeSp } ?: 0.76f, translationAlpha
+        )
 
         indexes.forEach { index ->
             val line = currentPlainLines[index]
             val original = line.text.trim()
             val translation = line.translation.orEmpty().trim()
             if (line.isMetadata) {
-                if (original.isNotBlank()) renderedLines += original
+                val metadata = PlainLyricsDisplayFormatter.formatMetadata(original)
+                if (metadata.isNotBlank()) renderedLines += metadata
                 return@forEach
             }
 
             val isCurrent = index == currentIndex
-            val wordByWordLine = if (isCurrent) findWordByWordLineForPlainLine(line, positionMs) else null
+            val wordByWordLine = if (isCurrent && wordByWordLyricsEnabledProvider()) findWordByWordLineForPlainLine(line, positionMs) else null
+
+            val lineEnd = currentPlainLines.drop(index + 1).firstOrNull { it.timeMs > line.timeMs }?.timeMs
+                ?: clock.durationMs?.takeIf { clock.durationKnown && it > line.timeMs }
+                ?: wordByWordLine?.endMs ?: line.timeMs
+
+            fun presented(text: String, translated: Boolean, timing: WordByWordLine?): CharSequence {
+                val displayed = if (timing != null) wordByWordLineSpan(timing, text, positionMs,
+                    if (translated) translationAlpha else null) else text
+                return SpannableStringBuilder(styled(displayed, translated, isCurrent)).apply {
+                    if (isNotEmpty()) setSpan(LyricRowMotion(line.timeMs, lineEnd, isCurrent, timing,
+                        wordByWordHighlightColorProvider()), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }
+            fun originalText(): CharSequence = presented(original, false, wordByWordLine)
+            fun translatedText(): CharSequence {
+                val text = SpannableStringBuilder()
+                translation.lines().forEachIndexed { i, part ->
+                    val timed = if (isCurrent && wordByWordLyricsEnabledProvider()) {
+                        currentTranslationWordByWordLines.firstOrNull {
+                            kotlin.math.abs(it.startMs - line.timeMs) <= 10L && it.text.trim() == part.trim()
+                        } ?: lineEnd.takeIf { it > line.timeMs }?.let {
+                            // Without translated word tags, animate over the known sentence duration.
+                            WordByWordLine(line.timeMs, it, part)
+                        }
+                    } else null
+                    if (i > 0) text.append('\n')
+                    text.append(presented(part, true, timed))
+                }
+                return text
+            }
 
             when (contentMode) {
                 LyricsContentDisplayMode.ORIGINAL_WITH_TRANSLATION -> {
                     val block = SpannableStringBuilder()
                     if (original.isNotBlank()) {
-                        block.append(
-                            if (wordByWordLine != null) wordByWordLineSpan(wordByWordLine, original, positionMs)
-                            else original
-                        )
+                        block.append(originalText())
                     }
                     if (line.hasTranslation()) {
                         if (block.isNotEmpty()) block.append('\n')
-                        block.append(translation)
+                        block.append(translatedText())
                     }
                     if (block.isNotBlankText()) renderedLines += block
                 }
 
                 LyricsContentDisplayMode.ORIGINAL_ONLY -> {
                     if (original.isNotBlank()) {
-                        renderedLines += if (wordByWordLine != null) {
-                            wordByWordLineSpan(wordByWordLine, original, positionMs)
-                        } else {
-                            original
-                        }
+                        renderedLines += originalText()
                     }
                 }
 
                 LyricsContentDisplayMode.TRANSLATION_ONLY -> {
-                    if (line.hasTranslation()) renderedLines += translation
+                    if (line.hasTranslation()) renderedLines += translatedText()
                 }
             }
         }
@@ -271,7 +305,11 @@ class FloatingLyricsRenderer(
             if (original.isBlank()) {
                 null
             } else if (visibleIndex == index) {
-                wordByWordLineSpan(wordByWordLine, original, positionMs)
+                SpannableStringBuilder(wordByWordLineSpan(wordByWordLine, original, positionMs)).apply {
+                    setSpan(LyricRowMotion(wordByWordLine.startMs, wordByWordLine.endMs, true,
+                        wordByWordLine, wordByWordHighlightColorProvider()), 0, length,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
             } else {
                 original
             }
@@ -300,15 +338,20 @@ class FloatingLyricsRenderer(
     private fun wordByWordLineSpan(
         wordByWordLine: WordByWordLine,
         displayText: String,
-        positionMs: Long
+        positionMs: Long,
+        alphaOverride: Int? = null
     ): CharSequence {
         val text = displayText.trim()
         if (text.isBlank()) return ""
+        // The actual overlay clips a second draw of the same layout; no moving shaping boundaries.
+        if (textViewProvider() is FloatingLyricsTextView) return text
 
         val progress = wordByWordHighlightProgress(wordByWordLine, text, positionMs)
         val span = SpannableString(text)
         if (progress.completedEnd > 0 || progress.hasActiveCharacter) {
-            val highlightColor = wordByWordHighlightColorProvider()
+            val highlightColor = wordByWordHighlightColorProvider().let {
+                if (alphaOverride != null) ColorUtils.setAlphaComponent(it, alphaOverride) else it
+            }
             if (progress.completedEnd > 0) {
                 span.setSpan(
                     ForegroundColorSpan(highlightColor),
@@ -319,7 +362,9 @@ class FloatingLyricsRenderer(
             }
 
             if (progress.hasActiveCharacter) {
-                val baseColor = textViewProvider()?.currentTextColor ?: Color.WHITE
+                val baseColor = (textViewProvider()?.currentTextColor ?: Color.WHITE).let {
+                    if (alphaOverride != null) ColorUtils.setAlphaComponent(it, alphaOverride) else it
+                }
                 val transitioningColor = ColorUtils.blendARGB(
                     baseColor,
                     highlightColor,
@@ -398,23 +443,36 @@ class FloatingLyricsRenderer(
 
     private fun setTextImmediately(text: CharSequence) {
         val view = textViewProvider() ?: return
+        (view as? FloatingLyricsTextView)?.resetTextAnimation()
         view.animate().cancel()
         view.alpha = 1f
         view.translationY = 0f
         view.scaleX = AirUiTokens.Motion.RestScale
         view.scaleY = AirUiTokens.Motion.RestScale
-        view.text = text
+        if (view is FloatingLyricsTextView) view.renderLyrics(text, getEstimatedPositionMs())
+        else view.text = text
         lastRenderedText = text.toString()
     }
 
     private fun setTextWithOptionalAnimation(text: CharSequence) {
         val textKey = text.toString()
-        val isWordByWordTick = wordByWordLyricsEnabledProvider() && currentWordByWordLines.isNotEmpty()
+        val actualView = textViewProvider()
+        if (actualView is FloatingLyricsTextView && textKey == lastRenderedText) {
+            actualView.renderLyrics(text, getEstimatedPositionMs())
+            return
+        }
+        val isWordByWordTick = isWordByWordActive()
         if (!isWordByWordTick && textKey == lastRenderedText) return
 
         val mode = switchAnimationModeProvider()
-        if (isWordByWordTick || lastRenderedText == null) {
+        if ((isWordByWordTick && actualView !is FloatingLyricsTextView) || lastRenderedText == null) {
             setTextImmediately(text)
+            return
+        }
+
+        if (actualView is FloatingLyricsTextView) {
+            setTextImmediately(text)
+            actualView.animateText(mode)
             return
         }
 
@@ -474,6 +532,7 @@ class FloatingLyricsRenderer(
 
     private fun resetTextAnimationState() {
         textViewProvider()?.let { view ->
+            (view as? FloatingLyricsTextView)?.resetTextAnimation()
             view.animate().cancel()
             view.alpha = 1f
             view.translationY = 0f
@@ -488,29 +547,7 @@ class FloatingLyricsRenderer(
         return (getEstimatedPlaybackPositionMs() + lyricsOffsetMs).coerceAtLeast(0L)
     }
 
-    private fun getEstimatedPlaybackPositionMs(nowUptimeMs: Long = uptimeMillisProvider()): Long {
-        if (!currentIsPlaying || lastPositionUpdateUptimeMs == 0L) {
-            return currentPositionMs.coerceAtLeast(0L)
-        }
-
-        val elapsedMs = nowUptimeMs - lastPositionUpdateUptimeMs
-        return (currentPositionMs + elapsedMs.coerceAtLeast(0L)).coerceAtLeast(0L)
-    }
-
-    private fun isStalePlayingBacktrack(
-        positionMs: Long,
-        incomingIsPlaying: Boolean,
-        estimatedBeforeUpdateMs: Long
-    ): Boolean {
-        if (!currentIsPlaying || !incomingIsPlaying || lastPositionUpdateUptimeMs == 0L) {
-            return false
-        }
-
-        val backtrackMs = estimatedBeforeUpdateMs - positionMs
-        return backtrackMs in 1L..STALE_PLAYING_BACKTRACK_MS
-    }
-
-    companion object {
-        private const val STALE_PLAYING_BACKTRACK_MS = 1_500L
+    private fun getEstimatedPlaybackPositionMs(nowMs: Long = monotonicNowMsProvider()): Long {
+        return clock.positionAt(nowMs).positionMs ?: 0L
     }
 }

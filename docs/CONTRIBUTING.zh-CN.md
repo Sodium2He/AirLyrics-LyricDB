@@ -1,118 +1,26 @@
-# 贡献指南
+# 开发说明
 
 [English](CONTRIBUTING.md) · [简体中文](CONTRIBUTING.zh-CN.md)
 
-感谢您愿意为 AirLyrics 做贡献。
 
-AirLyrics 目前处于稳定且积极维护状态，后续更新以维护为主。
+## 构建
 
-欢迎提交 bug 修复、兼容性修复、翻译更新、文档改进，以及小范围的 UI 文案润色。
+以 Gradle 文件声明的版本为准，可使用 Android Studio 内置 JDK 和已安装 SDK。本机 SDK 路径通过环境变量或忽略的 `local.properties` 配置，不要提交代理设置。
 
-如果准备添加较大的功能或改变现有行为，请先开 issue 讨论方向，再开始实现。
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug -Pairlyrics.skipRustBuild=true
 
-为了方便 review，请尽量让每个 PR 只做一件事。不要把无关的格式化、重构和功能改动混在一起。
-
-在说明中可以使用图片或者视频，这会更清晰。
-
-## 提交 PR 前
-
-AGP 9.3.x 下，请使用 JDK 21 运行 Android lint。项目字节码目标仍为 JVM 17。
-
-```bash
-./gradlew :app:lintDebug -Pairlyrics.skipRustBuild=true
+dotnet test windows/AirLyrics.Maintainer.Tests/AirLyrics.Maintainer.Tests.csproj
+dotnet publish windows/AirLyrics.Maintainer/AirLyrics.Maintainer.csproj -c Release
 ```
 
-其余检查请使用 JDK 17：
+Windows 项目目标为 `net10.0-windows`。跳过 Rust 适用于仅数据库构建，不代表在线原生源已验证；完整原生构建需要 `app/build.gradle.kts` 所配置的 Rust／NDK 工具链。
 
-```bash
-./gradlew :app:testDebugUnitTest -Pairlyrics.skipRustBuild=true
-./scripts/check_localization.sh
-./scripts/check_architecture_boundaries.sh
-```
+用 Bash 执行 `scripts/check_localization.sh` 和 `scripts/check_architecture_boundaries.sh`，并执行 `git diff --check`。测试应检查用户可观察行为。实机测试需在专用安装上主动执行，可能替换应用数据。
 
-如果修改了 Android UI 或应用集成逻辑，也可以在不重新构建 Rust 的情况下构建 debug APK：
+## 源码整理
 
-```bash
-./gradlew :app:assembleDebug -Pairlyrics.skipRustBuild=true
-```
 
-如果修改了 Rust 歌词核心，请额外运行：
-
-```bash
-cd lyrics-core
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-cargo test
-```
-
-如果改动涉及歌词解析、本地歌词存储、歌词导入、Android 存储权限或 SAF 文件夹行为，
-请额外在真机或模拟器上运行：
-
-```bash
-./gradlew :app:connectedDebugAndroidTest -Pairlyrics.skipRustBuild=true
-```
-
-注意：`connectedDebugAndroidTest` 可能会卸载或覆盖设备上已安装的 AirLyrics。
-运行前请确认测试设备上的数据可以被清除，建议使用测试机或模拟器。
-
-## 相关规范
-
-### 添加一个设置
-
-新增设置时，请按现有结构接入，不要只在 UI 页面里临时保存状态。
-
-1. 在 `settings/model/` 添加或扩展设置数据模型。
-2. 在对应的 `settings/store/*Store.kt` 中添加读取和保存逻辑。
-3. 更新对应 UI 页面，让用户可以查看或修改这个设置。
-4. 在真正使用该设置的模块中读取并应用它，例如悬浮窗渲染、歌词查询或歌词存储逻辑。
-5. 如果这个设置改变了用户可见行为，请同步更新相关文档或测试。
-
-不要在 UI 页面或 Service 中直接读写裸 `SharedPreferences`，除非您正在创建新的 Store。
-
-### 添加歌词 Provider
-
-AirLyrics 是悬浮歌词应用，不是找歌词项目。除非目前的歌词源已经基本无法满足正常使用，
-否则不建议继续添加在线歌词源，优先建议用户手动导入本地歌词。
-
-确实需要新增歌词来源时，请保持 Provider 的职责单一。
-
-1. 在 `lyrics/providers/` 下实现 `PlainLyricsProvider`。
-2. 注册到 `LyricsRepository`。
-3. 如果需要让用户手动选择来源，请在设置中暴露这个 Provider。
-4. 安全处理网络失败、无结果和模糊匹配。
-5. 除非应用设计改变，否则逐字歌词应继续以本地导入优先。
-
-Provider 只负责获取和返回歌词数据，不应该直接更新 UI。
-
-### 本地化规则
-
-修改 UI 文案时，请注意：
-
-- 不要随意修改已有 string key。
-- 保持 `%1$s`、`%2$d` 等 placeholder 不变。
-- UI 文案尽量简短。
-- 不要翻译歌曲名、歌手名、文件名、包名和路径。
-- 提交前运行 `./scripts/check_localization.sh`。
-
-### 架构边界
-
-项目目前仍使用单个 Gradle `:app` 模块，因此包边界通过检查脚本维护。
-重构前请运行 `./scripts/check_architecture_boundaries.sh`。尤其是 UI 代码不能直接 import
-`settings`、`lyrics`、`media`、`floating` 或 `app` 包。
-
-如果新增了 string 资源，请同时补充对应语言的文本，避免界面出现缺失翻译。
-
-## 不要提交的文件
-
-注意不要提交本地构建产物或本机配置，例如：
-
-```text
-.gradle/
-.kotlin/
-build/
-app/build/
-lyrics-core/target/
-local.properties
-```
-
-生成的 APK、签名文件、本机 SDK 路径和 IDE 缓存都不应该进入仓库。
+`applicationId` 为 `com.andsi.airlyrics.lyricdb`，源码命名空间保持 `com.andsi.airlyrics`，兼容既有类与 JNI。发布更新递增 `versionCode`，`versionName` 使用原版基底版本加 LyricDB 后缀。调试与正式签名不同，本分支内覆盖更新需保持签名一致。

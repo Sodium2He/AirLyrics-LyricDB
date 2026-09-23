@@ -62,7 +62,8 @@ internal fun MainUiHost.createFloatingPreviewCard(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 1f
             )
-            maxLines = previewMaxLines(lineDisplayMode())
+            // The formatter selects lyric blocks; wrapped original text must not clip translations.
+            maxLines = Int.MAX_VALUE
             includeFontPadding = false
         }
         addView(lyricView)
@@ -88,7 +89,7 @@ internal fun MainUiHost.createFloatingPreviewCard(
         lyricTextView = lyricView,
         bodyView = lyricView,
         updateLineMode = { mode ->
-            lyricView.maxLines = previewMaxLines(mode)
+            lyricView.maxLines = Int.MAX_VALUE
             lyricView.requestLayout()
         },
         updateFold = { expanded ->

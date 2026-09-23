@@ -140,13 +140,13 @@ internal fun FloatingPageScope.addAppearanceSection(list: LinearLayout) = with(h
                         getString(R.string.ui_font_size),
                         "",
                         reset = stylePanelReset(
-                            isAtDefault = { current, defaults -> current.textSizeSp == defaults.textSizeSp },
-                            restoreDefaults = { current, defaults -> current.copy(textSizeSp = defaults.textSizeSp) }
+                            isAtDefault = { current, defaults -> current.textSizeSp == defaults.textSizeSp && current.translationTextSizeSp == defaults.translationTextSizeSp },
+                            restoreDefaults = { current, defaults -> current.copy(textSizeSp = defaults.textSizeSp, translationTextSizeSp = defaults.translationTextSizeSp) }
                         )
                     ) {
                         addView(
                             sliderRow(
-                                title = getString(R.string.ui_size),
+                                title = getString(R.string.ui_original_font_size),
                                 value = style().textSizeSp.toInt(),
                                 min = 14,
                                 max = 56,
@@ -159,6 +159,14 @@ internal fun FloatingPageScope.addAppearanceSection(list: LinearLayout) = with(h
                                 previewFloatingTextSize(value.toFloat())
                             }
                         )
+                        addView(sliderRow(
+                            title = getString(R.string.ui_translation_font_size),
+                            value = style().translationTextSizeSp.toInt(), min = 8, max = 56, suffix = " sp",
+                            onChangeFinished = { value ->
+                                applyFloatingStyle(style().copy(translationTextSizeSp = value.toFloat()))
+                                refreshFloatingPreview()
+                            }
+                        ) { value -> previewFloatingTranslationSize(value.toFloat()) })
                     }
                 }
             ),
@@ -248,20 +256,21 @@ internal fun FloatingPageScope.addAppearanceSection(list: LinearLayout) = with(h
                         "",
                         reset = stylePanelReset(
                             isAtDefault = { current, defaults ->
-                                Color.alpha(current.textColor) == Color.alpha(defaults.textColor)
+                                Color.alpha(current.textColor) == Color.alpha(defaults.textColor) && current.translationAlpha == defaults.translationAlpha
                             },
                             restoreDefaults = { current, defaults ->
                                 current.copy(
                                     textColor = AirColorUtils.withAlpha(
                                         current.textColor,
                                         Color.alpha(defaults.textColor)
-                                    )
+                                    ),
+                                    translationAlpha = defaults.translationAlpha
                                 )
                             }
                         )
                     ) {
                         addView(sliderRow(
-                            title = getString(R.string.ui_opacity),
+                            title = getString(R.string.ui_original_font_opacity),
                             value = alphaToOpacityPercent(Color.alpha(style().textColor)),
                             min = 0,
                             max = 100,
@@ -276,6 +285,14 @@ internal fun FloatingPageScope.addAppearanceSection(list: LinearLayout) = with(h
                         ) { percent ->
                             previewFloatingFontOpacity(percent)
                         })
+                        addView(sliderRow(
+                            title = getString(R.string.ui_translation_font_opacity),
+                            value = alphaToOpacityPercent(style().translationAlpha), min = 0, max = 100, suffix = "%",
+                            onChangeFinished = { percent ->
+                                applyFloatingStyle(style().copy(translationAlpha = opacityPercentToAlpha(percent)))
+                                refreshFloatingPreview()
+                            }
+                        ) { percent -> previewFloatingTranslationOpacity(percent) })
                     }
                 }
             ),

@@ -1,3 +1,7 @@
+## Catalog ELRC extension
+
+The catalog retains raw text. Originals and translations can both carry word tags at the same sentence timestamp; source order defines the first row as original and subsequent rows as translations. Terminal tags retain final-segment duration. A translation with only sentence timing uses interpolated progress. Optional invalid-line filtering runs before pairing; see the user guide. Catalog playback is distinct from the inherited manual-import features below.
+
 # Lyrics Format
 
 [English](LYRICS_FORMAT.md) · [简体中文](LYRICS_FORMAT.zh-CN.md)

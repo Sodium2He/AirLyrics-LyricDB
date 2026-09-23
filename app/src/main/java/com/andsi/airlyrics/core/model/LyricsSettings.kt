@@ -12,7 +12,7 @@ data class LyricsSettings(
     val wordByWordLyricsEnabled: Boolean = false
 )
 
-/** An online lookup source. Local lyrics are always checked first. */
+/** An online lookup source. Library catalog is checked before the title/artist local cache. */
 enum class PlainLyricsSearchSource(val key: String) {
     /** Persisted compatibility value. New UI models local-only behavior with [LyricsSettings.autoSearchOnline]. */
     LOCAL_ONLY("local_only"),

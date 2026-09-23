@@ -1,14 +1,8 @@
 package com.andsi.airlyrics.ui.pages.floating
 
-import android.graphics.Color
 import android.graphics.Typeface
 import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
 import android.widget.TextView
-import com.andsi.airlyrics.core.color.AirColorUtils
 import com.andsi.airlyrics.ui.model.MainUiHost
 import com.andsi.airlyrics.core.model.LyricsContentDisplayMode
 import com.andsi.airlyrics.core.model.LyricsLineDisplayMode
@@ -74,75 +68,21 @@ internal fun opacityPercentToAlpha(percent: Int): Int {
 internal fun formattedPreviewLyrics(
     mode: LyricsContentDisplayMode,
     lines: List<FloatingPreviewLyricLine>,
-    textColor: Int
+    textColor: Int,
+    translationScale: Float = 0.76f,
+    translationAlpha: Int = 153
 ): CharSequence {
     val result = SpannableStringBuilder()
-    lines.forEachIndexed { lineIndex, line ->
-        if (lineIndex > 0) result.append('\n')
-        when (mode) {
-            LyricsContentDisplayMode.ORIGINAL_WITH_TRANSLATION -> {
-                result.appendPreviewLine(
-                    text = line.original,
-                    relativeSize = if (line.isCurrent) 1f else 0.80f,
-                    alphaFactor = if (line.isCurrent) 1f else 0.58f,
-                    bold = line.isCurrent,
-                    textColor = textColor
-                )
-                result.append('\n')
-                result.appendPreviewLine(
-                    text = line.translation,
-                    relativeSize = if (line.isCurrent) 0.76f else 0.64f,
-                    alphaFactor = if (line.isCurrent) 0.72f else 0.42f,
-                    bold = false,
-                    textColor = textColor
-                )
-            }
-
-            LyricsContentDisplayMode.ORIGINAL_ONLY -> result.appendPreviewLine(
-                text = line.original,
-                relativeSize = if (line.isCurrent) 1f else 0.80f,
-                alphaFactor = if (line.isCurrent) 1f else 0.58f,
-                bold = line.isCurrent,
-                textColor = textColor
-            )
-
-            LyricsContentDisplayMode.TRANSLATION_ONLY -> result.appendPreviewLine(
-                text = line.translation,
-                relativeSize = if (line.isCurrent) 1f else 0.80f,
-                alphaFactor = if (line.isCurrent) 1f else 0.58f,
-                bold = line.isCurrent,
-                textColor = textColor
-            )
-        }
+    fun append(text: String, translation: Boolean, current: Boolean) {
+        if (text.isBlank()) return
+        if (result.isNotEmpty()) result.append('\n')
+        result.append(com.andsi.airlyrics.core.text.styledLyricText(
+            text, translation, current, textColor, translationScale, translationAlpha
+        ))
+    }
+    lines.forEach { line ->
+        if (mode != LyricsContentDisplayMode.TRANSLATION_ONLY) append(line.original, false, line.isCurrent)
+        if (mode != LyricsContentDisplayMode.ORIGINAL_ONLY) append(line.translation, true, line.isCurrent)
     }
     return result
-}
-
-private fun SpannableStringBuilder.appendPreviewLine(
-    text: String,
-    relativeSize: Float,
-    alphaFactor: Float,
-    bold: Boolean,
-    textColor: Int
-) {
-    val start = length
-    append(text)
-    val end = length
-    if (start == end) return
-
-    if (relativeSize != 1f) {
-        setSpan(RelativeSizeSpan(relativeSize), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
-    if (alphaFactor != 1f) {
-        val alpha = (Color.alpha(textColor) * alphaFactor).roundToInt()
-        setSpan(
-            ForegroundColorSpan(AirColorUtils.withAlpha(textColor, alpha)),
-            start,
-            end,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-    }
-    if (bold) {
-        setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
 }

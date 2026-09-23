@@ -81,13 +81,6 @@ class FloatingLyricsFontStoreTest {
         assertTrue(FloatingLyricsFontStore.hasCustomFont(context))
         assertEquals("First Font.ttf", FloatingLyricsFontStore.customFontDisplayName(context))
         assertArrayEquals(first.readBytes(), storedCustomFont().readBytes())
-        assertNotNull(
-            FloatingLyricsFontStore.resolveTypeface(
-                context,
-                FloatingLyricsFontFamily.CUSTOM,
-                FloatingLyricsFontWeight.normalize(555)
-            )
-        )
 
         storedCustomFont().writeText("stale font bytes")
         val replacement = File(testDirectory, "Replacement Font.ttf")
@@ -99,6 +92,13 @@ class FloatingLyricsFontStoreTest {
         )
         assertEquals("Replacement Font.ttf", FloatingLyricsFontStore.customFontDisplayName(context))
         assertArrayEquals(replacement.readBytes(), storedCustomFont().readBytes())
+        assertNotNull(
+            FloatingLyricsFontStore.resolveTypeface(
+                context,
+                FloatingLyricsFontFamily.CUSTOM,
+                FloatingLyricsFontWeight.normalize(555)
+            )
+        )
     }
 
     @Test

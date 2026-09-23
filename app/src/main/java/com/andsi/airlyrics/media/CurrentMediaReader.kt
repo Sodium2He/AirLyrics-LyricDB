@@ -4,11 +4,14 @@ import android.content.ComponentName
 import android.content.Context
 import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.SystemClock
+import com.andsi.airlyrics.core.time.PlaybackClockSnapshot
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 import com.andsi.airlyrics.media.model.MediaSnapshotSequencer
+import com.andsi.airlyrics.media.model.SessionQueueItem
 
 object CurrentMediaReader {
     internal data class ControllerCandidate<T>(
@@ -64,8 +67,11 @@ object CurrentMediaReader {
         return bestCandidate(controllers.map { it.toCandidate() }, selectedPackage)?.value
     }
 
-    fun currentMediaFromController(controller: MediaController): CurrentMediaInfo? {
-        return controller.toCurrentMediaInfo()
+    fun currentMediaFromController(
+        controller: MediaController,
+        sessionEpoch: Long = 0L
+    ): CurrentMediaInfo? {
+        return controller.toCurrentMediaInfo(sessionEpoch)
     }
 
     private fun MediaController.hasMediaTitle(): Boolean {
@@ -116,26 +122,78 @@ object CurrentMediaReader {
             ?: usableCandidates.firstOrNull()
     }
 
-    fun MediaController.toCurrentMediaInfo(): CurrentMediaInfo? {
+    fun MediaController.toCurrentMediaInfo(sessionEpoch: Long = 0L): CurrentMediaInfo? {
         val metadata = this.metadata ?: return null
         val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty().trim()
         if (title.isBlank()) return null
 
-        val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
-            ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
-            ?: ""
+        val artistRaw = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
+        val albumArtistRaw = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
         val state = this.playbackState
+        val positionUnknown = state == null ||
+            state.position == PlaybackState.PLAYBACK_POSITION_UNKNOWN
+        val positionBase = state?.position
+            ?.takeUnless { it == PlaybackState.PLAYBACK_POSITION_UNKNOWN }
+        val durationKnown = metadata.containsKey(MediaMetadata.METADATA_KEY_DURATION)
 
         return CurrentMediaInfo(
             sourcePackage = this.packageName,
             title = title,
-            artist = artist,
+            artist = artistRaw ?: albumArtistRaw.orEmpty(),
             album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM).orEmpty(),
-            durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION),
+            durationMs = if (durationKnown) metadata.getLong(MediaMetadata.METADATA_KEY_DURATION) else 0L,
             isPlaying = state?.state == PlaybackState.STATE_PLAYING,
             positionMs = estimatedPositionMs(state),
-            snapshotSequence = MediaSnapshotSequencer.next()
+            snapshotSequence = MediaSnapshotSequencer.next(),
+            albumArtist = albumArtistRaw,
+            genre = metadata.getString(MediaMetadata.METADATA_KEY_GENRE),
+            trackNumber = metadata.optionalInt(MediaMetadata.METADATA_KEY_TRACK_NUMBER),
+            discNumber = metadata.optionalInt(MediaMetadata.METADATA_KEY_DISC_NUMBER),
+            durationKnown = durationKnown,
+            positionKnown = !positionUnknown,
+            positionBaseMs = positionBase,
+            positionAnchorElapsedRealtimeMs = state?.lastPositionUpdateTime?.takeIf { it > 0L },
+            playbackSpeed = state?.playbackSpeed,
+            playbackState = state?.state,
+            sessionEpoch = sessionEpoch,
+            queueItemId = state?.activeQueueItemId
+                ?.takeUnless { it == MediaSession.QueueItem.UNKNOWN_ID.toLong() },
+            mediaId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID),
+            queue = sessionQueue(this)
         )
+    }
+
+    private fun sessionQueue(controller: MediaController): List<SessionQueueItem> {
+        val items = runCatching { controller.queue }.getOrNull().orEmpty()
+        return items.map { item ->
+            val description = item.description
+            val extras = description.extras
+            val duration = extras?.let { bundle ->
+                if (bundle.containsKey(MediaMetadata.METADATA_KEY_DURATION)) {
+                    bundle.getLong(MediaMetadata.METADATA_KEY_DURATION)
+                } else {
+                    null
+                }
+            }
+            SessionQueueItem(
+                queueId = item.queueId,
+                title = description.title?.toString()?.takeIf { it.isNotBlank() },
+                artist = description.subtitle?.toString()?.takeIf { it.isNotBlank() },
+                album = description.description?.toString()?.takeIf { it.isNotBlank() },
+                durationMs = duration?.takeIf { it > 0L },
+                durationKnown = duration != null && duration > 0L,
+                trackNumber = extras?.takeIf { it.containsKey(MediaMetadata.METADATA_KEY_TRACK_NUMBER) }
+                    ?.getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER)?.toInt(),
+                discNumber = extras?.takeIf { it.containsKey(MediaMetadata.METADATA_KEY_DISC_NUMBER) }
+                    ?.getLong(MediaMetadata.METADATA_KEY_DISC_NUMBER)?.toInt(),
+                mediaId = description.mediaId
+            )
+        }
+    }
+
+    private fun MediaMetadata.optionalInt(key: String): Int? {
+        if (!containsKey(key)) return null
+        return getLong(key).toInt()
     }
 
     fun estimatedPositionMs(state: PlaybackState?): Long {
@@ -143,18 +201,21 @@ object CurrentMediaReader {
     }
 
     internal fun estimatedPositionMs(state: PlaybackState?, elapsedRealtimeMs: Long): Long {
+        return playbackClockSnapshot(state).positionAt(elapsedRealtimeMs).positionMs ?: 0L
+    }
+
+    internal fun playbackClockSnapshot(state: PlaybackState?): PlaybackClockSnapshot {
         if (state == null || state.position == PlaybackState.PLAYBACK_POSITION_UNKNOWN) {
-            return 0L
+            return PlaybackClockSnapshot.Unknown
         }
-
-        val basePositionMs = state.position.coerceAtLeast(0L)
-        if (state.state != PlaybackState.STATE_PLAYING || state.lastPositionUpdateTime <= 0L) {
-            return basePositionMs
-        }
-
-        val elapsedMs = (elapsedRealtimeMs - state.lastPositionUpdateTime)
-            .coerceAtLeast(0L)
-        val speed = state.playbackSpeed.takeIf { it > 0f } ?: 1f
-        return (basePositionMs + (elapsedMs * speed).toLong()).coerceAtLeast(0L)
+        return PlaybackClockSnapshot(
+            positionBaseMs = state.position,
+            positionKnown = true,
+            anchorElapsedRealtimeMs = state.lastPositionUpdateTime.takeIf { it > 0L },
+            playbackSpeed = state.playbackSpeed,
+            isPlaying = state.state == PlaybackState.STATE_PLAYING,
+            durationMs = null,
+            durationKnown = false
+        )
     }
 }

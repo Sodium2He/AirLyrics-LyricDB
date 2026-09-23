@@ -7,6 +7,8 @@ import com.andsi.airlyrics.core.model.LyricsLineDisplayMode
 import com.andsi.airlyrics.core.model.PlainLyricsSearchSource
 import com.andsi.airlyrics.core.model.LyricsSettings
 import com.andsi.airlyrics.core.model.LyricsSwitchAnimationMode
+import com.andsi.airlyrics.lyrics.catalog.CatalogLookupOutcome
+import com.andsi.airlyrics.lyrics.catalog.CatalogLyricsLookup
 import java.util.concurrent.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -498,6 +500,44 @@ class LyricsRepositoryEngineTest {
         assertEquals(0, local.calls)
     }
 
+    @Test
+    fun findLyrics_catalogHitWinsOverLocalCache() {
+        val local = FakePlainLyricsProvider("local", Result.success(result("local", "[00:01.00]cache")))
+        val catalog = CatalogLyricsLookup { _, _ ->
+            CatalogLookupOutcome.Finish(result("library", "[00:01.00]catalog"))
+        }
+        val engine = engine(local = local, catalogLyricsLookup = catalog)
+
+        val found = engine.findLyrics(
+            context,
+            "Deep Mountain",
+            "Artist",
+            album = "Live",
+            durationMs = 180_000L
+        ).getOrThrow()
+
+        assertEquals("library", found?.plainProviderId)
+        assertEquals("[00:01.00]catalog", found?.plainLrc)
+        assertEquals(0, local.calls)
+    }
+
+    @Test
+    fun findLyrics_catalogKnownAbsentOrAmbiguousDoesNotFallThroughToCache() {
+        val local = FakePlainLyricsProvider("local", Result.success(result("local", "[00:01.00]cache")))
+        val online = FakePlainLyricsProvider("netease", Result.success(result("netease", "[00:01.00]online")))
+        val engine = engine(
+            local = local,
+            online = online,
+            catalogLyricsLookup = CatalogLyricsLookup { _, _ -> CatalogLookupOutcome.Finish(null) }
+        )
+
+        val found = engine.findLyrics(context, "Song", "Artist", durationMs = 180_000L).getOrThrow()
+
+        assertNull(found)
+        assertEquals(0, local.calls)
+        assertEquals(0, online.calls)
+    }
+
     private fun engine(
         local: PlainLyricsProvider = FakePlainLyricsProvider("local", Result.success(null)),
         online: PlainLyricsProvider = FakePlainLyricsProvider("netease", Result.success(null)),
@@ -506,7 +546,8 @@ class LyricsRepositoryEngineTest {
         settings: LyricsSettings = settings(),
         localPlainLyricsSaver: LocalPlainLyricsSaver = RecordingPlainLyricsSaver(),
         wordByWordLyricsReader: WordByWordLyricsReader = WordByWordLyricsReader { _, _, _, _ -> emptyList() },
-        lookupLogger: LyricsLookupLogger = RecordingLogger()
+        lookupLogger: LyricsLookupLogger = RecordingLogger(),
+        catalogLyricsLookup: CatalogLyricsLookup = com.andsi.airlyrics.lyrics.catalog.NoCatalogLyricsLookup
     ): LyricsRepositoryEngine {
         return LyricsRepositoryEngine(
             localPlainLyricsProvider = local,
@@ -514,7 +555,8 @@ class LyricsRepositoryEngineTest {
             settingsReader = { settings },
             localPlainLyricsSaver = localPlainLyricsSaver,
             wordByWordLyricsReader = wordByWordLyricsReader,
-            lookupLogger = lookupLogger
+            lookupLogger = lookupLogger,
+            catalogLyricsLookup = catalogLyricsLookup
         )
     }
 

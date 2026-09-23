@@ -1,6 +1,8 @@
 package com.andsi.airlyrics.app.host
 
 import com.andsi.airlyrics.app.MainGraph
+import com.andsi.airlyrics.app.sync.LibrarySyncScheduler
+import com.andsi.airlyrics.settings.store.LibrarySyncStore
 import com.andsi.airlyrics.settings.store.LyricsSettingsStore
 import com.andsi.airlyrics.ui.components.playTinyPulse
 import com.andsi.airlyrics.ui.model.MainUiActions
@@ -32,6 +34,18 @@ internal fun MainGraph.createMainUiActions(): MainUiActions {
         openNotificationListenerSettings = viewModel::openNotificationListenerSettings,
         openUsageAccessSettings = viewModel::openUsageAccessSettings,
         selectLyricsDirectory = viewModel::selectLyricsDirectory,
+        selectLibraryPublishDirectory = viewModel::selectLibraryPublishDirectory,
+        editLibrarySyncEndpoint = uiHost::showLibrarySyncEditor,
+        toggleLibrarySync = {
+            val enabled = !LibrarySyncStore.isEnabled(activity)
+            LibrarySyncStore.setEnabled(activity, enabled)
+            if (enabled) {
+                LibrarySyncScheduler.ensureScheduled(activity)
+            }
+            enabled
+        },
+        syncLibraryNow = { viewModel.syncLibraryNow() },
+        forceSyncLibrary = { viewModel.syncLibraryNow(force = true) },
         copyLyricsDirectory = ::copyLyricsDirectory,
         importLyricsForCurrentMedia = viewModel::requestLyricsImport,
         deleteLyricsForCurrentMedia = { mode ->

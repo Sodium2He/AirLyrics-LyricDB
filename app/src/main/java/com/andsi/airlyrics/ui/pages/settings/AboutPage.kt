@@ -70,7 +70,7 @@ private fun MainUiHost.aboutLogoHeader(): View {
             })
         })
 
-        addView(bigText(activity, "AirLyrics").apply {
+        addView(bigText(activity, getString(R.string.app_name)).apply {
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(0, dp(AirUiTokens.Space.Xl), 0, 0)
         })
@@ -111,7 +111,7 @@ private fun MainUiHost.githubIconButton(activity: MainUiHost): View {
         enableSoftPressFeedback(AirUiTokens.Motion.StrongPressScale)
         setOnClickListener {
             playTinyPulse(this)
-            openUrl("https://github.com/AirLyrics/AirLyrics")
+            openUrl("https://github.com/Sodium2He/AirLyrics-LyricDB")
         }
 
         addView(ImageView(activity).apply {
@@ -241,7 +241,10 @@ private fun MainUiHost.loadChangelogText(): String {
 
 private fun MainUiHost.loadAssetText(assetName: String, fallback: String): String {
     return runCatching {
-        assets.open(assetName).bufferedReader(Charsets.UTF_8).use { it.readText() }
+        val localized = if (resources.configuration.locales[0].language == "zh")
+            assetName.removeSuffix(".txt") + ".zh-CN.txt" else assetName
+        val stream = runCatching { assets.open(localized) }.getOrElse { assets.open(assetName) }
+        stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
     }.getOrDefault(fallback)
         .trim()
         .ifBlank { fallback }

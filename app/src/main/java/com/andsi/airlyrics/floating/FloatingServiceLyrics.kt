@@ -8,6 +8,7 @@ import com.andsi.airlyrics.lyrics.LyricsChange
 import com.andsi.airlyrics.lyrics.LyricsChangeKind
 import com.andsi.airlyrics.lyrics.LyricsLookupException
 import com.andsi.airlyrics.lyrics.LyricsProviderResult
+import com.andsi.airlyrics.lyrics.catalog.LibraryCatalog
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import com.andsi.airlyrics.media.displayText
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
@@ -32,7 +33,7 @@ internal fun FloatingLyricsService.stopLyricsSync() {
 }
 
 internal fun FloatingLyricsService.lyricsSyncIntervalMs(): Long {
-    return if (renderer.isWordByWordActive()) 40L else 300L
+    return 40L // Both karaoke and long plain-line scrolling follow the playback clock.
 }
 
 internal fun FloatingLyricsService.applyLyricsOffset(offsetMs: Long) {
@@ -87,17 +88,10 @@ internal fun FloatingLyricsService.loadLyricsForSong(
     media: CurrentMediaInfo,
     lookupRequestKey: LyricsLookupRequestKey,
 ) {
-    val suppressAutomaticOnlineLookup = isAutomaticOnlineLookupSuppressed(media)
-    val lookupSettings = LyricsSettingsStore.getSettings(this).let { settings ->
-        if (suppressAutomaticOnlineLookup) {
-            settings.copy(autoSearchOnline = false)
-        } else {
-            settings
-        }
-    }
-    renderer.show(
-        if (media.isPlaying) {
-            "${getString(R.string.ui_searching_lyrics)}...\n${media.displayText}"
+    val lookupSettings = LyricsSettingsStore.getSettings(this).copy(autoSearchOnline = false)
+    if (!catalogUnavailable) renderer.show(
+        if (!LyricsSettingsStore.areStatusHintsEnabled(this)) "" else if (media.isPlaying) {
+            "${getString(R.string.ui_database_lookup)}\n${media.displayText}"
         } else {
             "${getString(R.string.ui_paused)}\n${media.displayText}"
         }
@@ -106,7 +100,16 @@ internal fun FloatingLyricsService.loadLyricsForSong(
     lyricsLookupRunner.submit(
         requestKey = lookupRequestKey.value,
         lookup = { token ->
-            lookupLyricsForMedia(media, lookupSettings, token)
+            val observation = media.toLibraryObservation(token.requestKey)
+            val cached = lyricsPrefetchCache.get(observation)
+            val currentGeneration = LibraryCatalog.status(this)?.generation
+            if (cached != null &&
+                (cached.catalogGeneration == null || cached.catalogGeneration == currentGeneration)
+            ) {
+                Result.success(cached)
+            } else {
+                lookupLyricsForMedia(media, lookupSettings, token)
+            }
         },
         callback = { completedLookupRequestKey, result ->
             if (activeLyricsLookupRequestKey == LyricsLookupRequestKey(completedLookupRequestKey)) {
@@ -121,8 +124,19 @@ internal fun FloatingLyricsService.applyLyricsResult(
     result: Result<LyricsProviderResult?>,
     media: CurrentMediaInfo
 ) {
-    val lyricsResult = result.getOrNull()
+    val filter = LyricsSettingsStore.getLineFilter(this)
+    val lyricsResult = result.getOrNull()?.let { lyrics ->
+        if (filter.enabled && lyrics.catalogRawText != null) {
+            val adapted = com.andsi.airlyrics.lyrics.catalog.ShardLyricsAdapter.adapt(
+                filter.apply(lyrics.catalogRawText), lyrics.catalogFormat
+            )
+            lyrics.copy(plainLrc = adapted.plainLrc, translatedLrc = adapted.translatedLrc,
+                wordByWordLines = adapted.wordByWordLines,
+                translationWordByWordLines = adapted.translationWordByWordLines)
+        } else lyrics
+    }
     val plainLrc = lyricsResult?.plainLrc
+    catalogUnavailable = (result.exceptionOrNull() as? com.andsi.airlyrics.lyrics.catalog.CatalogLookupException)?.status == "inactive"
 
     if (plainLrc != null) {
         renderer.setLyricsOffset(LyricsOffsetStore.getOffsetMs(this, media.toSongIdentity()))
@@ -130,16 +144,19 @@ internal fun FloatingLyricsService.applyLyricsResult(
             plainLrc = plainLrc,
             translatedLrc = lyricsResult.translatedLrc,
             wordByWordLines = lyricsResult.wordByWordLines,
-            emptyText = getString(R.string.ui_parsed_lyrics_are_empty) + "\n" + media.displayText
+            translationWordByWordLines = lyricsResult.translationWordByWordLines,
+            emptyText = if (LyricsSettingsStore.areStatusHintsEnabled(this)) getString(R.string.ui_parsed_lyrics_are_empty) + "\n" + media.displayText else ""
         )
         return
     }
 
-    renderer.clear()
-    renderer.show(lookupFailureText(result.exceptionOrNull(), media))
+    renderer.show(if (LyricsSettingsStore.areStatusHintsEnabled(this)) lookupFailureText(result.exceptionOrNull(), media) else "")
 }
 
 internal fun FloatingLyricsService.lookupFailureText(error: Throwable?, media: CurrentMediaInfo): String {
+    if (error is com.andsi.airlyrics.lyrics.catalog.CatalogLookupException) {
+        return "${media.displayText}\n${com.andsi.airlyrics.i18n.catalogStatusText(this, error.status)}"
+    }
     val lookupError = error as? LyricsLookupException
     return if (lookupError != null) {
         "${media.displayText}\n${localizedLyricsLookupMessage(lookupError)}"

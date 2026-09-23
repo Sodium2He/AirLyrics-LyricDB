@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AirLyrics</string>
+    <string name="app_name">AirLyrics LyricDB</string>
     <string name="field_value">%1$s: %2$d</string>
     <string name="field_value_with_suffix">%1$s: %2$d%3$s</string>
     <string name="floating_color_summary">%1$s: %2$s</string>
@@ -176,6 +176,38 @@
     <string name="ui_local_word_by_word_lyrics_title">Local word-by-word lyrics</string>
     <string name="ui_local_file_not_found">Local file not found</string>
     <string name="ui_local_lyrics_folder">Local lyrics folder</string>
+    <string name="ui_library_catalog">Song database</string>
+    <string name="ui_library_catalog_hint">Import a Windows publish folder or sync through WebDAV.</string>
+    <string name="ui_library_catalog_inactive">No catalog activated</string>
+    <string name="ui_library_catalog_active">%1$s · generation %2$s</string>
+    <string name="ui_choose_library_publish_folder">Choose publish folder</string>
+    <string name="ui_library_catalog_activating">Activating library catalog…</string>
+    <string name="ui_library_catalog_activated">Library catalog activated</string>
+    <string name="ui_library_catalog_manifest_missing">manifest.json not found in this folder</string>
+    <string name="ui_library_catalog_manifest_invalid">manifest.json is invalid</string>
+    <string name="ui_library_catalog_shard_missing">A shard listed in the manifest is missing</string>
+    <string name="ui_library_catalog_shard_corrupt">A shard failed size or hash checks; the previous catalog was kept</string>
+    <string name="ui_library_catalog_library_mismatch">This publish folder belongs to a different library</string>
+    <string name="ui_library_catalog_generation_older">This publish folder is older than the active catalog</string>
+    <string name="ui_library_catalog_failed">Couldn’t activate the library catalog</string>
+    <string name="ui_library_sync">WebDAV sync</string>
+    <string name="ui_library_sync_hint">Downloads run only on Wi-Fi. The previous catalog is kept if a publish is incomplete, older, or the network is lost.</string>
+    <string name="ui_library_sync_url">Manifest URL</string>
+    <string name="ui_library_sync_user">Username (optional)</string>
+    <string name="ui_library_sync_password">Password (optional)</string>
+    <string name="ui_library_sync_edit">Edit WebDAV endpoint</string>
+    <string name="ui_library_sync_now">Sync now</string>
+    <string name="ui_library_sync_on">Wi-Fi sync on</string>
+    <string name="ui_library_sync_off">Wi-Fi sync off</string>
+    <string name="ui_library_sync_saved">WebDAV settings saved</string>
+    <string name="ui_library_sync_no_url">Enter the manifest URL first</string>
+    <string name="ui_library_sync_started">Checking Wi-Fi and manifest…</string>
+    <string name="ui_library_sync_idle">WebDAV is not configured</string>
+    <string name="ui_sync_ok">Library updated to generation %1$s</string>
+    <string name="ui_sync_same">Catalog already up to date</string>
+    <string name="ui_sync_wifi">Waiting for Wi-Fi; previous catalog kept</string>
+    <string name="ui_sync_vpn">VPN without confirmed Wi-Fi; sync paused</string>
+    <string name="ui_sync_kept">Update rejected (%1$s); previous catalog kept</string>
     <string name="ui_local_lyrics_subtitle_type">%1$s · %2$s</string>
     <string name="ui_local_only">Local only</string>
     <string name="ui_lock_touch">Locked + click-through</string>
@@ -412,4 +444,45 @@ Word-timed TTML:
     <string name="ui_window_layout">Window layout</string>
     <string name="ui_yay">Yay!</string>
     <string name="ui_overlay_update_failed">Overlay update failed</string>
+    <string name="ui_catalog_matched">Matched in library</string>
+    <string name="ui_catalog_absent">Track has no embedded lyrics</string>
+    <string name="ui_catalog_ambiguous">Multiple possible tracks; no automatic selection</string>
+    <string name="ui_catalog_truncated">Too many candidates; match unresolved</string>
+    <string name="ui_catalog_read_error">Lyrics data could not be read</string>
+    <string name="ui_catalog_unmatched">No matching track in library</string>
+    <string name="ui_catalog_inactive">Library database not activated</string>
+    <string name="ui_library_sync_force">Force full sync</string>
+    <string name="ui_library_sync_force_hint">Download every shard again and rebuild the local index. Failed updates leave the active library in place.</string>
+    <string name="ui_sync_failed_detail">Sync failed: %1$s</string>
+    <string name="ui_sync_failed_auth">Server denied access. Check credentials and read permission.
+%1$s</string>
+    <string name="ui_sync_failed_missing">Requested file was not found on the server.
+%1$s</string>
+    <string name="ui_sync_failed_redirect">Server returned a redirect. Use the final file URL.
+%1$s</string>
+    <string name="ui_sync_failed_timeout">Connection or response timed out.
+%1$s</string>
+    <string name="ui_sync_failed_tls">HTTPS handshake failed.
+%1$s</string>
+    <string name="ui_sync_failed_connection">Could not connect to the server over Wi-Fi.
+%1$s</string>
+    <string name="ui_sync_failed_manifest">Server response is not a valid library manifest.
+%1$s</string>
+    <string name="ui_library_sync_more">More sync options</string>
+    <string name="ui_library_sync_force_confirm">Re-download all shards and replace the local database with the server version, including an older version?</string>
+    <string name="ui_database_source_active">Database (current lyrics source)</string>
+    <string name="ui_database_source_hint">Uses the synced database. Online sources below are for manual search.</string>
+    <string name="ui_database_lookup">Matching the song database…</string>
+    <string name="ui_manual_online_sources">Manual online search sources</string>
+    <string name="ui_show_lyrics_status_hints">Show lyrics status messages</string>
+    <string name="ui_original_font_size">Original font size</string>
+    <string name="ui_translation_font_size">Translation font size</string>
+    <string name="ui_original_font_opacity">Original opacity</string>
+    <string name="ui_translation_font_opacity">Translation opacity</string>
+    <string name="ui_lyric_filter">Invalid lyric filter</string>
+    <string name="ui_enable_lyric_filter">Enable filtering</string>
+    <string name="ui_filter_empty_lines">Filter empty lines</string>
+    <string name="ui_filter_characters">Characters to filter</string>
+    <string name="ui_filter_characters_hint">Filter rows made up only of these characters.</string>
+    <string name="ui_apply_lyric_filter">Apply filter</string>
 </resources>

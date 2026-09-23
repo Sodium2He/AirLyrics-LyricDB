@@ -7,8 +7,11 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.andsi.airlyrics.BuildConfig
+import com.andsi.airlyrics.media.dump.MediaSessionDump
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 import com.andsi.airlyrics.i18n.LanguageSettingsStore
+import java.io.File
+import java.nio.charset.StandardCharsets
 
 class MediaNotificationListenerService : NotificationListenerService() {
     private val handler = Handler(Looper.getMainLooper())
@@ -40,7 +43,8 @@ class MediaNotificationListenerService : NotificationListenerService() {
                         Log.e(TAG, message, error)
                     }
                 }
-            }
+            },
+            dumpSink = ::writeSessionDump
         )
     }
 
@@ -118,6 +122,22 @@ class MediaNotificationListenerService : NotificationListenerService() {
         }
 
         sendBroadcast(CurrentMediaBroadcast.mediaUpdateIntent(this, media))
+    }
+
+    private fun writeSessionDump(dump: MediaSessionDump) {
+        if (!BuildConfig.DEBUG) return
+
+        runCatching {
+            val dir = File(filesDir, "symfoniumx-dumps")
+            if (!dir.exists()) dir.mkdirs()
+            File(dir, "last-session.json").writeText(
+                dump.toJson().toString(2),
+                StandardCharsets.UTF_8
+            )
+            Log.d(TAG, "session dump: ${dump.toJson()}")
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to write session dump", error)
+        }
     }
 
     companion object {

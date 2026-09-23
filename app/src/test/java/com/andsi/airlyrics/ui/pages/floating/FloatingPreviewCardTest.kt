@@ -50,7 +50,7 @@ class FloatingPreviewCardTest {
             style = { previewStyle },
             lineDisplayMode = { LyricsLineDisplayMode.CURRENT_ONLY },
             isWordByWordLyricsEnabled = { false },
-            plainPreviewText = { "Preview" },
+            plainPreviewText = { "Original first visual line\nOriginal second visual line\nTranslation" },
             wordByWordPreviewText = { "Preview" }
         )
         val toggle = (handle.cardView as LinearLayout).getChildAt(1) as TextView
@@ -58,5 +58,14 @@ class FloatingPreviewCardTest {
         assertEquals(Color.WHITE, handle.lyricTextView.currentTextColor)
         assertEquals(host.colorTextMuted, toggle.currentTextColor)
         assertNotEquals(previewStyle.textColor, toggle.currentTextColor)
+        val preview = handle.lyricTextView
+        preview.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(120, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        )
+        preview.layout(0, 0, preview.measuredWidth, preview.measuredHeight)
+        org.junit.Assert.assertTrue(preview.layout.lineCount > 2)
+        assertEquals(preview.text.length, preview.layout.getLineEnd(preview.layout.lineCount - 1))
+        org.junit.Assert.assertTrue(preview.measuredHeight >= preview.layout.height)
     }
 }

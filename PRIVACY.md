@@ -2,7 +2,9 @@
 
 [English](PRIVACY.md) · [简体中文](PRIVACY.zh-CN.md)
 
-AirLyrics is designed to show floating synced lyrics on Android. The app does not collect, upload, sell, or share personal data.
+AirLyrics is designed to show floating synced lyrics on Android.
+
+WebDAV sync sends requests and credentials to the configured server and downloads the lyric database. Connection settings are stored privately in the app. Windows uploads contain lyrics and song metadata.
 
 ## Data collection
 
@@ -20,7 +22,7 @@ AirLyrics asks for the following Android permissions only when they are needed f
 | Notification access     | Detects current media playback information from local notifications / media sessions |
 | Notifications           | Keeps the foreground floating lyrics service visible to Android                      |
 | Usage access            | Checks whether apps selected in Display scope are visible (Android 10+)               |
-| Internet access         | Searches lyrics online when the user uses online lyrics search                       |
+| Internet access         | Synchronizes the configured WebDAV catalog; performs manual online lyrics search                       |
 | File picker             | Lets the user import local lyrics files                                              |
 
 Notification access is used locally on the device to detect media playback metadata such as the playing app, title, artist, album, playback state, and available media controls. AirLyrics does not upload notification content.
@@ -41,7 +43,7 @@ AirLyrics does not add personal identifiers, accounts, analytics identifiers, or
 
 ## Third-party services
 
-AirLyrics currently uses online lyrics providers only for lyrics search. Those providers may receive the search request needed to return lyrics. Their own privacy practices are controlled by those providers.
+The inherited online-search feature uses lyrics providers; this fork additionally contacts the user-configured WebDAV server. Those providers may receive the search request needed to return lyrics. Their own privacy practices are controlled by those providers.
 
 ## Children
 
@@ -55,4 +57,4 @@ This privacy policy may be updated when AirLyrics changes how permissions, local
 
 For questions or issues, please use GitHub Issues:
 
-https://github.com/AirLyrics/AirLyrics/issues
+[GitHub Issues](https://github.com/Sodium2He/AirLyrics-LyricDB/issues)

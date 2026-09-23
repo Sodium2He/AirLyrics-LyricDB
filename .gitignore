@@ -25,3 +25,9 @@ app/src/main/jniLibs/**/*.so
 # Signing keys
 *.jks
 *.keystore
+
+# Windows maintainer local output
+windows/**/bin/
+windows/**/obj/
+windows/**/Database/
+*.user

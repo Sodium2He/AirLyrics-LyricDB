@@ -16,6 +16,39 @@ object LrcParser {
         return parsePlainLines(plainLrc)
     }
 
+    /**
+     * Display-oriented parse: original timestamps stay in [ParsedPlainLyrics.rawLines],
+     * and [ParsedPlainLyrics.lines] have the file offset applied once.
+     */
+    fun parseDocument(plainLrc: String): ParsedPlainLyrics {
+        val keptLines = StringBuilder()
+        val offsetTags = mutableListOf<String>()
+
+        plainLrc.lineSequence().forEach { rawLine ->
+            val trimmed = rawLine.trim()
+            if (trimmed.startsWith("[offset:", ignoreCase = true)) {
+                offsetTags += trimmed
+            } else {
+                keptLines.append(rawLine).append('\n')
+            }
+        }
+
+        val fileOffset = LyricsFileOffset.parse(offsetTags)
+        val rawLines = parsePlainLines(keptLines.toString()).filterNot { it.isMetadata }
+        val displayLines = rawLines.map { line ->
+            line.copy(timeMs = LyricsFileOffset.apply(line.timeMs, fileOffset.offsetMs))
+        }
+
+        return ParsedPlainLyrics(
+            lines = displayLines,
+            rawLines = rawLines,
+            fileOffsetMs = fileOffset.offsetMs,
+            diagnostics = fileOffset.diagnostics
+        )
+    }
+
+    fun formatTimedLines(lines: List<LrcLine>): String = formatLinesForStorage(lines.filterNot { it.isMetadata })
+
     fun parseWithTranslation(plainLrc: String, translatedLrc: String?): List<LrcLine> {
         val originalLines = parsePlainLines(plainLrc)
         val translationLines = parsePlainLines(translatedLrc.orEmpty())

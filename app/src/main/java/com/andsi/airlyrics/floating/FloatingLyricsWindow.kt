@@ -257,10 +257,4 @@ class FloatingLyricsWindow(
         return (value * context.resources.displayMetrics.density).toInt()
     }
 
-    private class FloatingLyricsTextView(context: Context) : AppCompatTextView(context) {
-        override fun performClick(): Boolean {
-            super.performClick()
-            return true
-        }
-    }
 }

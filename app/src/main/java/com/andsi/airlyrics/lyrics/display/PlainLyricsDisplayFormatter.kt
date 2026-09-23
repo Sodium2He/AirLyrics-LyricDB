@@ -11,6 +11,12 @@ import com.andsi.airlyrics.core.model.LyricsLineDisplayMode
  * user wants those plain lyrics rendered.
  */
 object PlainLyricsDisplayFormatter {
+    /** Metadata stays intact in storage; the overlay shows its readable values. */
+    fun formatMetadata(text: String): String = text.lineSequence().map { line ->
+        val tag = Regex("""^\[([A-Za-z][A-Za-z0-9_\-]*):(.*)]$""").matchEntire(line.trim())
+        tag?.groupValues?.get(2)?.trim() ?: line.trim()
+    }.filter { it.isNotBlank() }.joinToString("\n")
+
     private const val NO_TRANSLATION_TEXT = "No translation for this lyric"
 
     fun format(
@@ -54,7 +60,7 @@ object PlainLyricsDisplayFormatter {
     private fun renderPlainLine(plainLine: LrcLine, contentMode: LyricsContentDisplayMode): String {
         val original = plainLine.text.trim()
         val translation = plainLine.translation.orEmpty().trim()
-        if (plainLine.isMetadata) return original
+        if (plainLine.isMetadata) return formatMetadata(original)
 
         return when (contentMode) {
             LyricsContentDisplayMode.ORIGINAL_WITH_TRANSLATION -> {

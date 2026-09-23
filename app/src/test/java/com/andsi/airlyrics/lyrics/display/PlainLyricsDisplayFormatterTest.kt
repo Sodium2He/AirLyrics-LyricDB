@@ -74,7 +74,7 @@ class PlainLyricsDisplayFormatterTest {
             noTranslationText = "暂无翻译"
         )
 
-        assertEquals("[ar:Artist]\n[ti:Title]", rendered)
+        assertEquals("Artist\nTitle", rendered)
     }
 
     @Test

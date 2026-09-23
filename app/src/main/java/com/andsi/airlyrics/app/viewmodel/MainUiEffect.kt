@@ -11,12 +11,14 @@ internal sealed interface MainUiEffect {
     data object OpenNotificationListenerSettings : MainUiEffect
     data object OpenUsageAccessSettings : MainUiEffect
     data object SelectLyricsDirectory : MainUiEffect
+    data object SelectLibraryPublishDirectory : MainUiEffect
     data object SelectLyricsFile : MainUiEffect
     data object SelectFloatingFontFile : MainUiEffect
 
     data class ShowMessage(
         @param:StringRes val messageRes: Int,
-        val error: Boolean = false
+        val error: Boolean = false,
+        val formatArgs: List<String> = emptyList()
     ) : MainUiEffect
 
     data class ShowImportFormatError(

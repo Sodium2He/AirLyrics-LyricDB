@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AirLyrics</string>
+    <string name="app_name">AirLyrics LyricDB</string>
     <string name="field_value">%1$s：%2$d</string>
     <string name="field_value_with_suffix">%1$s：%2$d%3$s</string>
     <string name="floating_color_summary">%1$s：%2$s</string>
@@ -176,6 +176,38 @@
     <string name="ui_local_word_by_word_lyrics_title">本地逐字歌词</string>
     <string name="ui_local_file_not_found">未找到本地文件</string>
     <string name="ui_local_lyrics_folder">本地歌词目录</string>
+    <string name="ui_library_catalog">歌曲数据库</string>
+    <string name="ui_library_catalog_hint">导入 Windows publish 目录，或通过 WebDAV 同步。</string>
+    <string name="ui_library_catalog_inactive">尚未启用曲库</string>
+    <string name="ui_library_catalog_active">%1$s · generation %2$s</string>
+    <string name="ui_choose_library_publish_folder">选择 publish 目录</string>
+    <string name="ui_library_catalog_activating">正在启用曲库…</string>
+    <string name="ui_library_catalog_activated">曲库已启用</string>
+    <string name="ui_library_catalog_manifest_missing">此目录没有 manifest.json</string>
+    <string name="ui_library_catalog_manifest_invalid">manifest.json 无效</string>
+    <string name="ui_library_catalog_shard_missing">manifest 列出的分库文件缺失</string>
+    <string name="ui_library_catalog_shard_corrupt">分库大小或哈希校验失败，已保留上一版曲库</string>
+    <string name="ui_library_catalog_library_mismatch">此 publish 目录属于另一个曲库</string>
+    <string name="ui_library_catalog_generation_older">此 publish 目录比当前曲库更旧</string>
+    <string name="ui_library_catalog_failed">无法启用曲库</string>
+    <string name="ui_library_sync">WebDAV 同步</string>
+    <string name="ui_library_sync_hint">仅在 Wi-Fi 上下载。半发布、旧时间戳或断线时保留上一版曲库。</string>
+    <string name="ui_library_sync_url">manifest 地址</string>
+    <string name="ui_library_sync_user">用户名（可选）</string>
+    <string name="ui_library_sync_password">密码（可选）</string>
+    <string name="ui_library_sync_edit">编辑 WebDAV 入口</string>
+    <string name="ui_library_sync_now">立即同步</string>
+    <string name="ui_library_sync_on">已开启 Wi-Fi 同步</string>
+    <string name="ui_library_sync_off">已关闭 Wi-Fi 同步</string>
+    <string name="ui_library_sync_saved">WebDAV 设置已保存</string>
+    <string name="ui_library_sync_no_url">请先填写 manifest 地址</string>
+    <string name="ui_library_sync_started">正在检查 Wi-Fi 与 manifest…</string>
+    <string name="ui_library_sync_idle">尚未配置 WebDAV</string>
+    <string name="ui_sync_ok">曲库已更新到 generation %1$s</string>
+    <string name="ui_sync_same">曲库已是最新</string>
+    <string name="ui_sync_wifi">等待 Wi-Fi，已保留上一版曲库</string>
+    <string name="ui_sync_vpn">VPN 未确认底层 Wi-Fi，同步已暂停</string>
+    <string name="ui_sync_kept">更新被拒绝（%1$s），已保留上一版曲库</string>
     <string name="ui_local_lyrics_subtitle_type">%1$s · %2$s</string>
     <string name="ui_local_only">只使用本地</string>
     <string name="ui_lock_touch">已锁定并穿透</string>
@@ -411,4 +443,45 @@
     <string name="ui_window_layout">窗口布局</string>
     <string name="ui_yay">我会非常非常非常开心的！</string>
     <string name="ui_overlay_update_failed">悬浮窗更新失败</string>
+    <string name="ui_catalog_matched">资料库已匹配</string>
+    <string name="ui_catalog_absent">曲目没有内嵌歌词</string>
+    <string name="ui_catalog_ambiguous">存在多个候选，未自动选择</string>
+    <string name="ui_catalog_truncated">候选过多，匹配未决</string>
+    <string name="ui_catalog_read_error">歌词数据读取失败</string>
+    <string name="ui_catalog_unmatched">资料库中未匹配到曲目</string>
+    <string name="ui_catalog_inactive">尚未启用歌词资料库</string>
+    <string name="ui_library_sync_force">强制完整同步</string>
+    <string name="ui_library_sync_force_hint">重新下载全部分库并重建本机索引。更新失败时保留当前资料库。</string>
+    <string name="ui_sync_failed_detail">同步失败：%1$s</string>
+    <string name="ui_sync_failed_auth">服务器拒绝访问，请检查账号和读取权限。
+%1$s</string>
+    <string name="ui_sync_failed_missing">服务器上找不到请求的文件。
+%1$s</string>
+    <string name="ui_sync_failed_redirect">服务器返回重定向，请填写最终文件地址。
+%1$s</string>
+    <string name="ui_sync_failed_timeout">连接或读取响应超时。
+%1$s</string>
+    <string name="ui_sync_failed_tls">HTTPS 握手失败。
+%1$s</string>
+    <string name="ui_sync_failed_connection">无法通过 Wi-Fi 连接服务器。
+%1$s</string>
+    <string name="ui_sync_failed_manifest">服务器返回的内容不是有效的资料库清单。
+%1$s</string>
+    <string name="ui_library_sync_more">更多同步选项</string>
+    <string name="ui_library_sync_force_confirm">重新下载全部分库，并以服务器版本替换本机数据库（包括旧版本）？</string>
+    <string name="ui_database_source_active">数据库（当前歌词来源）</string>
+    <string name="ui_database_source_hint">使用已同步的数据库；下方在线来源用于手动搜索。</string>
+    <string name="ui_database_lookup">正在匹配歌曲数据库…</string>
+    <string name="ui_manual_online_sources">手动在线搜索来源</string>
+    <string name="ui_show_lyrics_status_hints">显示歌词状态提示</string>
+    <string name="ui_original_font_size">原文字号</string>
+    <string name="ui_translation_font_size">译文字号</string>
+    <string name="ui_original_font_opacity">原文不透明度</string>
+    <string name="ui_translation_font_opacity">译文不透明度</string>
+    <string name="ui_lyric_filter">无效歌词过滤</string>
+    <string name="ui_enable_lyric_filter">启用过滤</string>
+    <string name="ui_filter_empty_lines">过滤空行</string>
+    <string name="ui_filter_characters">过滤字符</string>
+    <string name="ui_filter_characters_hint">过滤仅由以下字符组成的行。</string>
+    <string name="ui_apply_lyric_filter">应用过滤</string>
 </resources>

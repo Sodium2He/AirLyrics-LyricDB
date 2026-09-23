@@ -9,7 +9,10 @@ data class ParsedWordByWordLyrics(
     val plainLrc: String,
     val hasTranslation: Boolean,
     val metadataLines: List<String> = emptyList()
-)
+) {
+    val fileOffsetMs: Long get() = LyricsFileOffset.parse(metadataLines).offsetMs
+    val diagnostics: List<LyricsParseDiagnostic> get() = emptyList()
+}
 
 object WordByWordLrcParser {
     data class StorageValidationResult(

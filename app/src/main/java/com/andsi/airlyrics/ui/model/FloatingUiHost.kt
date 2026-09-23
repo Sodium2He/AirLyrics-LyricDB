@@ -25,6 +25,8 @@ internal interface FloatingUiHost {
         content: LinearLayout.() -> Unit
     ): FloatingFocusBubbleHandle
 
+    fun lyricLineFilter(): com.andsi.airlyrics.core.model.LyricLineFilter
+    fun applyLyricLineFilter(filter: com.andsi.airlyrics.core.model.LyricLineFilter)
     fun floatingStyle(): FloatingLyricsStyle
     fun floatingStyleDefaults(preset: String): FloatingLyricsStyle
     fun floatingPresets(): List<FloatingLyricsPreset>

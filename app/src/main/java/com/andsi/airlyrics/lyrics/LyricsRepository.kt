@@ -9,6 +9,11 @@ import com.andsi.airlyrics.lyrics.providers.LrclibPlainLyricsProvider
 import com.andsi.airlyrics.lyrics.providers.MusixmatchPlainLyricsProvider
 import com.andsi.airlyrics.lyrics.providers.NeteasePlainLyricsProvider
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
+import com.andsi.airlyrics.lyrics.catalog.AndroidCatalogLyricsLookup
+import com.andsi.airlyrics.lyrics.catalog.CatalogLookupOutcome
+import com.andsi.airlyrics.lyrics.catalog.CatalogLyricsLookup
+import com.andsi.airlyrics.lyrics.catalog.NoCatalogLyricsLookup
+import com.andsi.airlyrics.lyrics.catalog.TrackObservation
 import com.andsi.airlyrics.core.model.PlainLyricsSearchSource
 import com.andsi.airlyrics.core.model.LyricsSettings
 import java.util.concurrent.CancellationException
@@ -17,9 +22,10 @@ import java.util.concurrent.CancellationException
  * Central lyrics lookup entry point.
  *
  * Lookup order:
- * 1. Local plain lyrics, so imported/saved files always win.
- * 2. Selected online providers in priority order, only when the user allows online search.
- * 3. Optional local plain cache save for successful online results.
+ * 1. Library catalog / shard lyrics when a generation is active.
+ * 2. Local plain lyrics cache (must not shadow a catalog hit or known-absent).
+ * 3. Selected online providers in priority order, only when the user allows online search.
+ * 4. Optional local plain cache save for successful online results.
  */
 object LyricsRepository {
     private val onlinePlainLyricsProviders = mapOf(
@@ -38,7 +44,8 @@ object LyricsRepository {
         bypassLocal: Boolean = false,
         forceSaveOnline: Boolean = false,
         ignoreAutoSearchSetting: Boolean = false,
-        cancellationToken: LyricsLookupCancellationToken? = null
+        cancellationToken: LyricsLookupCancellationToken? = null,
+        observation: TrackObservation? = null
     ): Result<LyricsProviderResult?> {
         return LyricsRepositoryEngine(
             localPlainLyricsProvider = LocalPlainLyricsProvider,
@@ -46,7 +53,8 @@ object LyricsRepository {
             settingsReader = { settings },
             localPlainLyricsSaver = AndroidLocalPlainLyricsSaver,
             wordByWordLyricsReader = AndroidWordByWordLyricsReader,
-            lookupLogger = AndroidLyricsLookupLogger
+            lookupLogger = AndroidLyricsLookupLogger,
+            catalogLyricsLookup = AndroidCatalogLyricsLookup
         ).findLyrics(
             context = context,
             title = title,
@@ -56,7 +64,8 @@ object LyricsRepository {
             bypassLocal = bypassLocal,
             forceSaveOnline = forceSaveOnline,
             ignoreAutoSearchSetting = ignoreAutoSearchSetting,
-            cancellationToken = cancellationToken
+            cancellationToken = cancellationToken,
+            observation = observation
         )
     }
 }
@@ -67,7 +76,8 @@ internal class LyricsRepositoryEngine(
     private val settingsReader: (Context) -> LyricsSettings,
     private val localPlainLyricsSaver: LocalPlainLyricsSaver,
     private val wordByWordLyricsReader: WordByWordLyricsReader,
-    private val lookupLogger: LyricsLookupLogger = LyricsLookupLogger { _, _, _, _, _, _ -> }
+    private val lookupLogger: LyricsLookupLogger = LyricsLookupLogger { _, _, _, _, _, _ -> },
+    private val catalogLyricsLookup: CatalogLyricsLookup = NoCatalogLyricsLookup
 ) {
     fun findLyrics(
         context: Context,
@@ -78,9 +88,16 @@ internal class LyricsRepositoryEngine(
         bypassLocal: Boolean = false,
         forceSaveOnline: Boolean = false,
         ignoreAutoSearchSetting: Boolean = false,
-        cancellationToken: LyricsLookupCancellationToken? = null
+        cancellationToken: LyricsLookupCancellationToken? = null,
+        observation: TrackObservation? = null
     ): Result<LyricsProviderResult?> {
         val appContext = context.applicationContext
+        val resolvedObservation = observation ?: TrackObservation.fromLegacy(
+            title = title,
+            artist = artist,
+            album = album,
+            durationMs = durationMs
+        )
         val request = PlainLyricsSearchRequest(
             context = appContext,
             title = title,
@@ -97,6 +114,10 @@ internal class LyricsRepositoryEngine(
 
             cancellationToken?.throwIfCancellationRequested()
             if (!bypassLocal) {
+                when (val catalog = catalogLyricsLookup.lookup(appContext, resolvedObservation)) {
+                    is CatalogLookupOutcome.Finish -> return@runCatching catalog.result
+                    CatalogLookupOutcome.Continue -> Unit
+                }
                 localPlainLyricsProvider.fetch(request).getOrThrow()?.let { localPlainLyricsResult ->
                     cancellationToken?.throwIfCancellationRequested()
                     return@runCatching attachLocalWordByWordLyricsIfAvailable(

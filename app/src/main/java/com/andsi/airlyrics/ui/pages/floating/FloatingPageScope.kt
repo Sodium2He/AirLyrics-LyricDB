@@ -202,7 +202,9 @@ internal class FloatingPageScope(
         return formattedPreviewLyrics(
             mode = contentDisplayMode(),
             lines = visiblePreviewLyricLines(),
-            textColor = previewStyle.textColor
+            textColor = previewStyle.textColor,
+            translationScale = previewStyle.translationTextSizeSp / previewStyle.textSizeSp,
+            translationAlpha = previewStyle.translationAlpha
         )
     }
 
@@ -213,7 +215,9 @@ internal class FloatingPageScope(
             formattedPreviewLyrics(
                 mode = contentDisplayMode(),
                 lines = visibleLines,
-                textColor = previewStyle.textColor
+                textColor = previewStyle.textColor,
+            translationScale = previewStyle.translationTextSizeSp / previewStyle.textSizeSp,
+            translationAlpha = previewStyle.translationAlpha
             )
         )
         if (contentDisplayMode() != LyricsContentDisplayMode.TRANSLATION_ONLY) {
@@ -233,6 +237,15 @@ internal class FloatingPageScope(
                     currentLineStart + highlightedCharacters,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
+            }
+        }
+        if (contentDisplayMode() != LyricsContentDisplayMode.ORIGINAL_ONLY) {
+            val start = result.toString().indexOf(currentLine.translation)
+            if (start >= 0 && currentLine.translation.isNotEmpty()) {
+                result.setSpan(ForegroundColorSpan(AirColorUtils.withAlpha(
+                    previewStyle.wordByWordHighlightColor, previewStyle.translationAlpha
+                )), start, start + (currentLine.translation.length / 2).coerceAtLeast(1),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
         return result
@@ -290,6 +303,7 @@ internal class FloatingPageScope(
 
     internal fun refreshFloatingSettingTiles() {
         val latestStyle = style()
+        updateFloatingTileSubtitle(host.getString(R.string.ui_lyric_filter), onOff(host.lyricLineFilter().enabled))
         updateFloatingTileSubtitle(host.getString(R.string.ui_skin_preset), localizedPresetTitle(latestStyle.presetName))
         updateFloatingTileSubtitle(host.getString(R.string.ui_text_color), AirColorUtils.colorSummary(latestStyle.textColor))
         updateFloatingTileSubtitle(host.getString(R.string.ui_background_bubble), host.getString(if (latestStyle.backgroundEnabled) R.string.ui_on else R.string.ui_off))
@@ -374,6 +388,14 @@ internal class FloatingPageScope(
         val previewStyle = style().copy(textSizeSp = textSizeSp)
         renderFloatingPreview(previewStyle)
         updateFloatingTileSubtitle(host.getString(R.string.ui_font_size), "${textSizeSp.toInt()} sp")
+    }
+
+    internal fun previewFloatingTranslationSize(sizeSp: Float) {
+        renderFloatingPreview(style().copy(translationTextSizeSp = sizeSp))
+    }
+
+    internal fun previewFloatingTranslationOpacity(percent: Int) {
+        renderFloatingPreview(style().copy(translationAlpha = opacityPercentToAlpha(percent)))
     }
 
     internal fun previewFloatingFontWeight(fontWeight: Int) {

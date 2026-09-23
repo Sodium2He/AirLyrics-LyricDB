@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Primary matching uses NFC, Locale.ROOT / InvariantCulture lowercasing, and a fixed whitespace set.",
+    "Full-width, punctuation, and feat./ft./featuring variants are secondary only.",
+    "live, remix, and instrumental version words stay in both primary and secondary keys."
+  ],
+  "primary": [
+    {
+      "id": "nfc-hiragana-ga",
+      "input": "\u304c",
+      "expected": "\u304c"
+    },
+    {
+      "id": "nfd-hiragana-ga",
+      "input": "\u304b\u3099",
+      "expected": "\u304c"
+    },
+    {
+      "id": "case-whitespace",
+      "input": "  HeLLo   World  ",
+      "expected": "hello world"
+    },
+    {
+      "id": "ideographic-space",
+      "input": "hello\u3000world",
+      "expected": "hello world"
+    },
+    {
+      "id": "nbsp",
+      "input": "hello\u00a0world",
+      "expected": "hello world"
+    },
+    {
+      "id": "keep-live-suffix",
+      "input": "Song (Live)",
+      "expected": "song (live)"
+    },
+    {
+      "id": "keep-remix",
+      "input": "Song (Remix)",
+      "expected": "song (remix)"
+    },
+    {
+      "id": "keep-instrumental",
+      "input": "Song (Instrumental)",
+      "expected": "song (instrumental)"
+    },
+    {
+      "id": "fullwidth-stays-fullwidth-in-primary",
+      "input": "\uff21\uff22\uff23",
+      "expected": "\uff41\uff42\uff43"
+    }
+  ],
+  "same_primary": [
+    {
+      "id": "nfc-equivalence",
+      "left": "\u304c",
+      "right": "\u304b\u3099"
+    }
+  ],
+  "different_primary": [
+    {
+      "id": "fullwidth-vs-ascii",
+      "left": "ABC",
+      "right": "\uff21\uff22\uff23"
+    },
+    {
+      "id": "feat-vs-ft",
+      "left": "Artist feat. Guest",
+      "right": "Artist ft. Guest"
+    },
+    {
+      "id": "live-vs-stripped",
+      "left": "Song (Live)",
+      "right": "Song"
+    },
+    {
+      "id": "punct-vs-plain",
+      "left": "Hello, World",
+      "right": "Hello World"
+    }
+  ],
+  "same_secondary": [
+    {
+      "id": "fullwidth-vs-ascii",
+      "left": "ABC",
+      "right": "\uff21\uff22\uff23"
+    },
+    {
+      "id": "feat-vs-ft",
+      "left": "Artist feat. Guest",
+      "right": "Artist ft. Guest"
+    },
+    {
+      "id": "featuring",
+      "left": "Artist feat. Guest",
+      "right": "Artist featuring Guest"
+    },
+    {
+      "id": "punct-vs-plain",
+      "left": "Hello, World",
+      "right": "Hello World"
+    }
+  ],
+  "different_secondary": [
+    {
+      "id": "live-vs-stripped",
+      "left": "Song (Live)",
+      "right": "Song"
+    },
+    {
+      "id": "remix-vs-stripped",
+      "left": "Song (Remix)",
+      "right": "Song"
+    },
+    {
+      "id": "instrumental-vs-stripped",
+      "left": "Song (Instrumental)",
+      "right": "Song"
+    }
+  ]
+}

@@ -46,7 +46,10 @@ internal fun createCurrentLyricsCard(activity: MainUiHost): RefreshableSettingsC
         gravity = Gravity.CENTER_VERTICAL
     }
 
+    var renderedState: CurrentLyricsUiState? = null
     fun render(state: CurrentLyricsUiState) {
+        if (state == renderedState) return
+        renderedState = state
         body.removeAllViews()
         val media = state.media
 
@@ -76,6 +79,8 @@ internal fun createCurrentLyricsCard(activity: MainUiHost): RefreshableSettingsC
         if (state.offsetMs != 0L) {
             body.addView(smallHint(activity, getString(R.string.ui_offset_per_song_hint)))
         }
+
+        if (state.catalogOnly) return
 
         body.addView(actionButton(activity, getString(R.string.ui_import_lyrics_for_current_song)) {
             uiActions.importLyricsForCurrentMedia()
