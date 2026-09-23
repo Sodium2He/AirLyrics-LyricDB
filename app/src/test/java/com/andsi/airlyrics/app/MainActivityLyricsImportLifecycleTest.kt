@@ -30,6 +30,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
@@ -109,7 +110,8 @@ class MainActivityLyricsImportLifecycleTest {
         val oldActivity = controller.get()
         showLyricsSettings(oldActivity)
         awaitAppIo(oldActivity)
-        assertTrue(oldActivity.visibleTexts().contains(oldActivity.getString(R.string.ui_not_bound)))
+        assertTrue(oldActivity.graph.uiHost.currentLyricsState().catalogOnly)
+        assertFalse(oldActivity.graph.uiHost.currentLyricsState().hasPlainLyrics)
 
         deliverPickerResult(oldActivity, LATE_IMPORT_URI, SONG)
         controller.recreate()
@@ -124,11 +126,9 @@ class MainActivityLyricsImportLifecycleTest {
                 duration = SONG.durationMs
             )
         }
-        awaitCondition("Timed out waiting for restored lyrics UI") {
-            !restoredActivity.visibleTexts().contains(
-                restoredActivity.getString(R.string.ui_not_bound)
-            )
-        }
+        awaitAppIo(restoredActivity)
+        assertTrue(restoredActivity.graph.uiHost.currentLyricsState().catalogOnly)
+        assertFalse(restoredActivity.graph.uiHost.currentLyricsState().hasPlainLyrics)
 
         assertEquals(1, inputOpenCount.get())
         assertEquals(

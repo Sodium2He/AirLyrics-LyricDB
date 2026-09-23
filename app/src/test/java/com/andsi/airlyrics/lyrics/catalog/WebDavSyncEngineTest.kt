@@ -208,7 +208,7 @@ class WebDavSyncEngineTest {
                     durationKnown = true
                 )
             )
-            assertEquals(CatalogLookupOutcome.Continue, gone)
+            assertEquals(CatalogLookupOutcome.Finish(null, "unmatched"), gone)
         }
         assertKeepLyrics("Keep", "[00:01.00]keep")
     }

@@ -4,6 +4,8 @@ import com.andsi.airlyrics.core.text.MetadataNormalizer
 import kotlin.math.abs
 
 object TrackMatcher {
+    internal fun serializedArtistParts(value: String): List<String> = value.split(Regex("[,;/、；，]"))
+        .map(MetadataNormalizer::primary).filter { it.isNotBlank() }
     const val DURATION_TOLERANCE_MS = 2_000L
     const val RECALL_LIMIT = 64
 
@@ -117,7 +119,21 @@ object TrackMatcher {
             addAll(candidate.artists)
             candidate.artist?.let(::add)
         }
-        return names.any { name -> namesEqual(observed, name) } || namesEqual(observed, candidate.artist)
+        if (names.any { name -> namesEqual(observed, name) }) return true
+        // Serialized lists vary between tag readers and MediaSession. Compare the whole
+        // list, never an intersection; album and measured duration support this fallback.
+        if (!albumExact(observation, candidate) || !observation.durationKnown ||
+            observation.durationMs == null || candidate.durationMs == null) return false
+        val stored = candidate.artists.ifEmpty { listOfNotNull(candidate.artist) }
+        if (stored.size > 1) {
+            // Native values are atomic: an artist's own comma or slash is not a boundary.
+            return listOf(", ", "; ", " / ", "/", ",", ";", "、", "；", "，").any { separator ->
+                namesEqual(observed, stored.joinToString(separator))
+            }
+        }
+        val observedNames = serializedArtistParts(observed)
+        val storedNames = stored.singleOrNull()?.let(::serializedArtistParts).orEmpty()
+        return observedNames.size > 1 && observedNames == storedNames
     }
 
     private fun albumExact(observation: TrackObservation, candidate: CatalogTrackRef): Boolean {

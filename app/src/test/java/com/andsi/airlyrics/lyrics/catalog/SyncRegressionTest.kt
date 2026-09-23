@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import org.junit.Assert.*
 import org.junit.Test
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
 class SyncRegressionTest {
     private val date = "Mon, 21 Sep 2026 00:00:00 GMT"
     private val bytes = "test shard".toByteArray()

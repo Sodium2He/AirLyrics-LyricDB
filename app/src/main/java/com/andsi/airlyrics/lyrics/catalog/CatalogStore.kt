@@ -91,7 +91,7 @@ class CatalogStore(private val dbFile: File) : Closeable {
             AND (t.artist_primary = ? OR EXISTS (
                 SELECT 1 FROM catalog_artist ca
                 WHERE ca.shard_id = t.shard_id AND ca.track_id = t.track_id AND ca.artist_primary = ?
-            ))
+            ) OR (? = '1' AND t.album_primary = ?))
         """.trimIndent()
         val limit = TrackMatcher.RECALL_LIMIT + 1
         val sql = """
@@ -113,7 +113,9 @@ class CatalogStore(private val dbFile: File) : Closeable {
             LIMIT $limit
         """.trimIndent()
         val args = mutableListOf(titlePrimary, titleSecondary, titlePrimary)
-        if (artistPrimary != null) args.addAll(listOf(artistPrimary, artistPrimary))
+        if (artistPrimary != null) args.addAll(listOf(artistPrimary, artistPrimary,
+            if (TrackMatcher.serializedArtistParts(observation.artist.orEmpty()).size > 1) "1" else "0",
+            observation.album?.let(MetadataNormalizer::primary).orEmpty()))
         db.rawQuery(sql, args.toTypedArray()).use { cursor ->
             val results = mutableListOf<CatalogTrackRef>()
             while (cursor.moveToNext()) {

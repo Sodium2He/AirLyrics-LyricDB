@@ -45,6 +45,7 @@ import org.robolectric.shadows.ShadowWindowManagerImpl
 @RunWith(RobolectricTestRunner::class)
 @LooperMode(LooperMode.Mode.PAUSED)
 class FloatingLyricsServiceCommandLifecycleTest {
+    private val catalogFixture = com.andsi.airlyrics.lyrics.catalog.ServiceCatalogFixture()
     private lateinit var application: Application
     private var serviceController: ServiceController<out FloatingLyricsService>? = null
 
@@ -195,13 +196,13 @@ class FloatingLyricsServiceCommandLifecycleTest {
         assertNull(service.activeLyricsLookupRequestKey)
         assertEquals(0, service.callbackDispatcher.pendingDeliveryCount())
 
-        saveLocalPlainLyrics("[00:01.00]initial command lyrics")
+        saveCatalogLyrics("[00:01.00]initial command lyrics")
         application.sendBroadcast(CurrentMediaBroadcast.mediaUpdateIntent(application, media()))
         ShadowLooper.idleMainLooper()
         service.callbackDispatcher.takeDelivery().invoke()
         assertEquals("initial command lyrics", lyricsView.text.toString())
 
-        saveLocalPlainLyrics("[00:01.00]reloaded command lyrics")
+        saveCatalogLyrics("[00:01.00]reloaded command lyrics")
         send(service, FloatingServiceCommand.ReloadLyrics)
         assertNotNull(
             "ReloadLyrics must enter the existing lookup runner",
@@ -217,7 +218,7 @@ class FloatingLyricsServiceCommandLifecycleTest {
     fun destroy_cleansWindowReceiversAndPendingCallbacks() {
         MediaSourceStore.saveSelectedPackage(application, SOURCE_PACKAGE)
         FloatingLyricsStyleStore.setAutoHideWhenPaused(application, true)
-        saveLocalPlainLyrics("[00:01.00]must not render after destroy")
+        saveCatalogLyrics("[00:01.00]must not render after destroy")
         val mediaIntent = CurrentMediaBroadcast.mediaUpdateIntent(
             application,
             media(isPlaying = true)
@@ -329,17 +330,8 @@ class FloatingLyricsServiceCommandLifecycleTest {
         }
     }
 
-    private fun saveLocalPlainLyrics(plainLrc: String) {
-        assertTrue(
-            LyricsStorage.savePlainLyrics(
-                context = application,
-                title = TITLE,
-                artist = ARTIST,
-                duration = DURATION_MS,
-                plainLrc = plainLrc,
-                plainProvider = "service-command-test"
-            )
-        )
+    private fun saveCatalogLyrics(plainLrc: String) {
+        catalogFixture.save(application, TITLE, ARTIST, ALBUM, DURATION_MS, plainLrc)
     }
 
     private fun media(
@@ -369,6 +361,7 @@ class FloatingLyricsServiceCommandLifecycleTest {
     }
 
     private fun resetState() {
+        catalogFixture.clear(application)
         application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .clear()

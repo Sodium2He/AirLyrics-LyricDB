@@ -11,6 +11,10 @@
 
 The WebDAV heading's `…` menu offers force full sync for rebuilding or rolling back the catalog. Server paths may differ from disk paths, such as `$DB` mapped to `/DB/`.
 
+## Song metadata recommendations
+
+**Preferred song metadata:** use native multi-value tags for artists, album artists, genres, and other multi-value fields: **Use single MP4 atom for multiple values**, or ID3v2.4 native multi-value tags. Traditional separators have compatibility support, but reliable matching is not guaranteed.
+
 ## Overlay
 
 - **Font size / opacity**: separate controls for originals and translations.

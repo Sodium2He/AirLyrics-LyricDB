@@ -23,12 +23,11 @@ object LyricsSettingsStore {
         }
     }
 
-    const val ACTION_STATUS_HINTS_CHANGED = "com.andsi.airlyrics.STATUS_HINTS_CHANGED"
     fun areStatusHintsEnabled(context: Context): Boolean = store(context).getBoolean("show_status_hints", false)
 
     fun setStatusHintsEnabled(context: Context, enabled: Boolean) {
         store(context).setBoolean("show_status_hints", enabled)
-        context.sendBroadcast(android.content.Intent(ACTION_STATUS_HINTS_CHANGED).setPackage(context.packageName))
+        StatusHintsChangedBroadcast.send(context)
     }
 
     private const val PREFS_NAME = "lyrics_settings"

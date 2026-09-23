@@ -8,10 +8,10 @@ data class ParsedWordByWordLyrics(
     val wordByWordLines: List<WordByWordLine>,
     val plainLrc: String,
     val hasTranslation: Boolean,
-    val metadataLines: List<String> = emptyList()
+    val metadataLines: List<String> = emptyList(),
+    val diagnostics: List<LyricsParseDiagnostic> = emptyList()
 ) {
     val fileOffsetMs: Long get() = LyricsFileOffset.parse(metadataLines).offsetMs
-    val diagnostics: List<LyricsParseDiagnostic> get() = emptyList()
 }
 
 object WordByWordLrcParser {
@@ -50,7 +50,12 @@ object WordByWordLrcParser {
             wordByWordLines = wordByWordLines,
             plainLrc = wordByWordLinesToPlainLrc(wordByWordLines, importParts.metadataLines, effectiveTranslations),
             hasTranslation = effectiveTranslations.isNotEmpty(),
-            metadataLines = importParts.metadataLines
+            metadataLines = importParts.metadataLines,
+            diagnostics = importParts.diagnostics + wordByWordLines.map {
+                LyricsParseDiagnostic("inferred_end_time", "start_ms=${it.startMs}; end_ms=${it.endMs}")
+            } + sortedRawLines.groupBy { it.startMs }.filterValues { it.size > 1 }.keys.map {
+                LyricsParseDiagnostic("overlapping_or_duplicate_start", "start_ms=$it")
+            }
         )
     }
 
@@ -117,7 +122,8 @@ private data class RawWordByWordLine(
 private data class WordByWordImportParts(
     val metadataLines: List<String>,
     val rawLines: List<RawWordByWordLine>,
-    val translationCandidates: List<TimedTextSegment>
+    val translationCandidates: List<TimedTextSegment>,
+    val diagnostics: List<LyricsParseDiagnostic>
 )
 
 private data class TimedTextSegment(
@@ -140,6 +146,7 @@ private fun collectImportParts(wordByWordLrc: String): WordByWordImportParts {
     val metadataLines = mutableListOf<String>()
     val rawLines = mutableListOf<RawWordByWordLine>()
     val translationCandidates = mutableListOf<TimedTextSegment>()
+    val diagnostics = mutableListOf<LyricsParseDiagnostic>()
 
     wordByWordLrc.lineSequence().forEach { rawLine ->
         val line = rawLine.trim()
@@ -150,7 +157,7 @@ private fun collectImportParts(wordByWordLrc: String): WordByWordImportParts {
             return@forEach
         }
 
-        val rawWordByWordLine = parseRawWordByWordLine(line)
+        val rawWordByWordLine = parseRawWordByWordLine(line, diagnostics)
         if (rawWordByWordLine != null) {
             rawLines += rawWordByWordLine
             return@forEach
@@ -164,7 +171,8 @@ private fun collectImportParts(wordByWordLrc: String): WordByWordImportParts {
     return WordByWordImportParts(
         metadataLines = metadataLines,
         rawLines = rawLines,
-        translationCandidates = translationCandidates
+        translationCandidates = translationCandidates,
+        diagnostics = diagnostics
     )
 }
 
@@ -172,7 +180,7 @@ private fun buildWordByWordLines(
     sortedRawLines: List<RawWordByWordLine>
 ): List<WordByWordLine> {
     return sortedRawLines.mapIndexedNotNull { index, rawLine ->
-        val nextLineStart = sortedRawLines.getOrNull(index + 1)?.startMs
+        val nextLineStart = sortedRawLines.drop(index + 1).firstOrNull { it.startMs > rawLine.startMs }?.startMs
         buildWordByWordLine(rawLine, nextLineStart)
     }
 }
@@ -246,7 +254,9 @@ private fun isValidWordByWordLrcImportLine(line: String): Boolean {
     return parseTimedTextSegments(line).isNotEmpty()
 }
 
-private fun parseRawWordByWordLine(line: String): RawWordByWordLine? {
+private fun parseRawWordByWordLine(
+    line: String, diagnostics: MutableList<LyricsParseDiagnostic>? = null
+): RawWordByWordLine? {
     val lineStart = timeTagRegex.find(line)?.let { parseTimeTag(it) }
         ?: return null
     val content = line.replace(timeTagRegex, "").trim()
@@ -260,7 +270,12 @@ private fun parseRawWordByWordLine(line: String): RawWordByWordLine? {
         if (textStart > textEndExclusive || textStart > content.length) return@mapIndexedNotNull null
         val segmentText = content.substring(textStart, textEndExclusive)
             .replace(wordTimeTagRegex, "")
-        if (segmentText.isBlank()) return@mapIndexedNotNull null
+        if (segmentText.isBlank()) {
+            if (index < wordTags.lastIndex) diagnostics?.add(
+                LyricsParseDiagnostic("empty_segment", "start_ms=$startMs")
+            )
+            return@mapIndexedNotNull null
+        }
         segmentText to startMs
     }.filter { (_, startMs) -> startMs >= lineStart }
 

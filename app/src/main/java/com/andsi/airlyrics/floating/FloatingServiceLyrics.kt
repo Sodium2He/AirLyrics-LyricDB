@@ -81,7 +81,7 @@ internal fun FloatingLyricsService.clearLyricsState(message: String) {
     currentMedia = CurrentMediaInfo.Empty
     renderer.setLyricsOffset(0L)
     renderer.clear()
-    renderer.show(message)
+    renderer.show(if (LyricsSettingsStore.areStatusHintsEnabled(this)) message else "")
 }
 
 internal fun FloatingLyricsService.loadLyricsForSong(

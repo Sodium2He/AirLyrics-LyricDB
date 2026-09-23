@@ -77,7 +77,6 @@ class LibraryCatalog(private val store: CatalogStore) : Closeable {
 
     companion object {
         const val LIBRARY_DIR = "symfoniumx-library"
-        const val ACTION_CHANGED = "com.andsi.airlyrics.LIBRARY_CATALOG_CHANGED"
         const val CATALOG_FILE = "catalog.sqlite"
 
         fun directory(context: Context): File {

@@ -60,7 +60,10 @@ class FloatingLyricsWindow(
         }
 
         val view = FloatingLyricsTextView(context).apply {
-            setText(R.string.ui_waiting_for_media_message)
+            text = if (com.andsi.airlyrics.settings.store.LyricsSettingsStore.areStatusHintsEnabled(context)) {
+                context.getString(R.string.ui_waiting_for_media_message)
+            } else ""
+            visibility = if (text.isBlank()) View.INVISIBLE else View.VISIBLE
             includeFontPadding = false
         }
 

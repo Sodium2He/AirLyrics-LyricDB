@@ -14,6 +14,22 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class CatalogClosedLoopTest {
     @Test
+    fun joinedArtistsReachMatcherThroughCatalogRecall() {
+        val shard = File(root, "multi-artists.sqlite")
+        ShardFixture.write(shard, "s1", "r1", listOf(
+            FixtureTrack(1, "未来序曲(フルver.)[Live]", "初音ミク / 東京フィルハーモニー交響楽団",
+                "Miku Symphony 2017", durationMs = 237000L, lyricsStatus = "present",
+                lyrics = "[00:01.00]lyrics", format = "lrc", textHash = "lyrics")))
+        LibraryCatalog.open(File(root, "catalog.sqlite")).use { catalog ->
+            catalog.activate(manifest(1L, "s1", "r1", shard), mapOf("s1" to shard))
+            val outcome = catalog.lookup(TrackObservation("未来序曲(フルver.)[Live]",
+                "初音ミク, 東京フィルハーモニー交響楽団", "Miku Symphony 2017",
+                durationMs = 237000L, durationKnown = true))
+            assertEquals("[00:01.00]lyrics", (outcome as CatalogLookupOutcome.Finish).result?.plainLrc)
+        }
+    }
+
+    @Test
     fun artistIsUsedBeforeCandidateLimit() {
         val shard = File(root, "common-title.sqlite")
         ShardFixture.write(shard, "s1", "r1", (1L..80L).map { id ->

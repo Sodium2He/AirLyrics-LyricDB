@@ -22,6 +22,22 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class FloatingLyricsRendererTest {
     @Test
+    fun emptyStatusHidesBackgroundAndLyricsRestoreVisibility() {
+        val view = FloatingLyricsTextView(ApplicationProvider.getApplicationContext())
+        view.setBackgroundColor(Color.BLACK)
+        view.setPadding(20, 10, 20, 10)
+        val renderer = FloatingLyricsRenderer(textViewProvider = { view })
+        renderer.show("")
+        assertEquals(android.view.View.INVISIBLE, view.visibility)
+        renderer.parseAndShow("[00:00.00]lyrics", emptyText = "")
+        assertEquals(android.view.View.VISIBLE, view.visibility)
+        renderer.parseAndShow("", emptyText = "")
+        assertEquals(android.view.View.INVISIBLE, view.visibility)
+        renderer.show("No lyrics")
+        assertEquals(android.view.View.VISIBLE, view.visibility)
+    }
+
+    @Test
     fun lineSwitchDoesNotAnimateTheBackgroundView() {
         val view = FloatingLyricsTextView(ApplicationProvider.getApplicationContext())
         view.setBackgroundColor(Color.BLACK)

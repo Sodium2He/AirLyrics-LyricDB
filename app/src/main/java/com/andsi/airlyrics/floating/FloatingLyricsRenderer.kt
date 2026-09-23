@@ -443,6 +443,7 @@ class FloatingLyricsRenderer(
 
     private fun setTextImmediately(text: CharSequence) {
         val view = textViewProvider() ?: return
+        view.visibility = if (text.isBlank()) android.view.View.INVISIBLE else android.view.View.VISIBLE
         (view as? FloatingLyricsTextView)?.resetTextAnimation()
         view.animate().cancel()
         view.alpha = 1f
@@ -526,6 +527,7 @@ class FloatingLyricsRenderer(
         val view = textViewProvider() ?: return null
         view.animate().cancel()
         view.text = text
+        view.visibility = if (text.isBlank()) android.view.View.INVISIBLE else android.view.View.VISIBLE
         lastRenderedText = textKey
         return view
     }

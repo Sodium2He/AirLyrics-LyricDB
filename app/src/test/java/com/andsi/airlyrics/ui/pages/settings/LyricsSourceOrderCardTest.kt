@@ -359,14 +359,14 @@ class LyricsSourceOrderCardTest {
     }
 
     @Test
-    fun settingsHomeLyricsSummaryUsesSourceNamesWithoutPriorityPunctuation() {
+    fun settingsHomeLyricsSummaryUsesCatalogSource() {
         val sources = PlainLyricsSearchSource.onlineSources
         LyricsSettingsStore.setPlainLyricsSearchSources(context, sources)
         val activity = launchActivity()
         val host = activity.graph.uiHost
 
         val page = createSettingsHomePage(host)
-        val expectedSummary = "${host.localizedPlainLyricsSourceList(sources)} · ${host.getString(R.string.ui_auto_save)}"
+        val expectedSummary = host.getString(R.string.ui_database_source_active)
 
         assertTrue(page.hasText(expectedSummary))
         assertFalse(expectedSummary.contains("→"))

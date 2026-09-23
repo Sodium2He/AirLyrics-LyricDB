@@ -91,8 +91,8 @@ android {
         minSdk = 26
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.2.5-lyricdb.1"
+        versionCode = 18
+        versionName = "1.2.5-lyricdb.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {

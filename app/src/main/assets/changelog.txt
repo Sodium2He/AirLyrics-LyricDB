@@ -1,10 +1,14 @@
+v1.2.5-lyricdb.2 - 2026-09-23
+
+- Fixed the empty background remaining visible when lyric status hints are disabled.
+- Improved lyric matching for songs with multiple artists.
+- Fixed word-timed lyric lines with identical start times being dropped.
+
 v1.2.5-lyricdb.1 - 2026-09-22
 
-- Song database with Windows publishing and WebDAV sync.
-- Improved bilingual karaoke and matching overlay/preview styling.
-- Translation size and opacity controls.
-- Long-line scrolling, invalid-line filtering and background resizing animations.
-- Separate package for installation alongside AirLyrics.
+- Added Windows lyric extraction and song-metadata database generation, with Android WebDAV sync and lyric matching.
+- Unified desktop lyrics and in-app preview styling, with improved word-by-word rendering.
+- Added translation size and opacity settings, playback-synced scrolling, optional invalid-line filtering, and animated background resizing.
 
 v1.2.5 - 2026-09-10
 

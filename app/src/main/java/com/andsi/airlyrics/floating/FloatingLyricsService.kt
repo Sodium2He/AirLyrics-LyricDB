@@ -156,11 +156,11 @@ open class FloatingLyricsService : Service() {
 
     private val lyricsChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == com.andsi.airlyrics.settings.store.LyricsSettingsStore.ACTION_STATUS_HINTS_CHANGED) {
+            if (intent?.action == com.andsi.airlyrics.settings.store.StatusHintsChangedBroadcast.ACTION) {
                 reloadCurrentLyrics()
                 return
             }
-            if (intent?.action == com.andsi.airlyrics.lyrics.catalog.LibraryCatalog.ACTION_CHANGED) {
+            if (intent?.action == com.andsi.airlyrics.lyrics.catalog.LibraryCatalogChangedBroadcast.ACTION) {
                 lyricsPrefetchCache.clear()
                 catalogUnavailable = false
                 reloadCurrentLyrics()
@@ -218,8 +218,8 @@ open class FloatingLyricsService : Service() {
             this,
             lyricsChangedReceiver,
             LyricsChangedBroadcast.lyricsChangedFilter().apply {
-                addAction(com.andsi.airlyrics.lyrics.catalog.LibraryCatalog.ACTION_CHANGED)
-                addAction(com.andsi.airlyrics.settings.store.LyricsSettingsStore.ACTION_STATUS_HINTS_CHANGED)
+                addAction(com.andsi.airlyrics.lyrics.catalog.LibraryCatalogChangedBroadcast.ACTION)
+                addAction(com.andsi.airlyrics.settings.store.StatusHintsChangedBroadcast.ACTION)
             },
             ContextCompat.RECEIVER_NOT_EXPORTED
         )

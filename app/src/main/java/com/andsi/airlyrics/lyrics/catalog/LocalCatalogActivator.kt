@@ -134,7 +134,7 @@ object LocalCatalogActivator {
 
         // Keep prior files alive for readers that still hold the previous generation.
         cleanupUnreferenced(File(libraryDir, SHARDS_DIR), localShards.values.toSet() + previousFiles)
-        context.sendBroadcast(android.content.Intent(LibraryCatalog.ACTION_CHANGED).setPackage(context.packageName))
+        LibraryCatalogChangedBroadcast.send(context)
         return LocalCatalogActivateResult.Activated(
             libraryId = manifest.libraryId,
             generation = manifest.generation,

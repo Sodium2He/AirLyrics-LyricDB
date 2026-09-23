@@ -45,6 +45,7 @@ import org.robolectric.shadows.ShadowLooper
 @RunWith(RobolectricTestRunner::class)
 @LooperMode(LooperMode.Mode.PAUSED)
 class FloatingLyricsServiceLatestMediaTest {
+    private val catalogFixture = com.andsi.airlyrics.lyrics.catalog.ServiceCatalogFixture()
     @Test
     fun pollingAndCallbackEpochsDoNotChangeLyricsIdentity() {
         val playing = media(OLD_TITLE, sequence = 1L).copy(sessionEpoch = 17L)
@@ -73,9 +74,9 @@ class FloatingLyricsServiceLatestMediaTest {
 
     @Test
     fun newMediaCancelsOldLookup_andOnlyLatestLyricsReachTextView() {
-        saveLocalPlainLyrics(OLD_TITLE, "[00:01.00]old lyrics")
-        saveLocalPlainLyrics(NEW_TITLE, "[00:01.00]new lyrics")
-        saveLocalPlainLyrics(DESTROYED_TITLE, "[00:01.00]destroyed lyrics")
+        saveCatalogLyrics(OLD_TITLE, "[00:01.00]old lyrics")
+        saveCatalogLyrics(NEW_TITLE, "[00:01.00]new lyrics")
+        saveCatalogLyrics(DESTROYED_TITLE, "[00:01.00]destroyed lyrics")
 
         val controller = Robolectric.buildService(QueuedLookupFloatingLyricsService::class.java)
             .create()
@@ -114,6 +115,7 @@ class FloatingLyricsServiceLatestMediaTest {
 
     @Test
     fun rejectedLatestLookup_clearsServiceRequestStateAndSearchingUi() {
+        LyricsSettingsStore.setStatusHintsEnabled(context, true)
         val controller = Robolectric.buildService(RejectedLookupFloatingLyricsService::class.java)
             .create()
             .also { serviceController = it }
@@ -201,7 +203,7 @@ class FloatingLyricsServiceLatestMediaTest {
 
     @Test
     fun lyricsChanged_visibleServiceReloadsSameSongAndIgnoresDifferentSong() {
-        saveLocalPlainLyrics(OLD_TITLE, "[00:01.00]initial lyrics")
+        saveCatalogLyrics(OLD_TITLE, "[00:01.00]initial lyrics")
         val controller = Robolectric.buildService(QueuedLookupFloatingLyricsService::class.java)
             .create()
             .also { serviceController = it }
@@ -213,7 +215,7 @@ class FloatingLyricsServiceLatestMediaTest {
         callbackDispatcher.takeDelivery().invoke()
         assertEquals("initial lyrics", lyricsView.text.toString())
 
-        saveLocalPlainLyrics(OLD_TITLE, "[00:01.00]first changed lyrics")
+        saveCatalogLyrics(OLD_TITLE, "[00:01.00]first changed lyrics")
         publishLyricsChanged(
             SongIdentity(
                 title = OLD_TITLE.lowercase(),
@@ -224,7 +226,7 @@ class FloatingLyricsServiceLatestMediaTest {
         )
         val firstChangedDelivery = callbackDispatcher.takeDelivery()
 
-        saveLocalPlainLyrics(OLD_TITLE, "[00:01.00]latest changed lyrics")
+        saveCatalogLyrics(OLD_TITLE, "[00:01.00]latest changed lyrics")
         publishLyricsChanged(song(OLD_TITLE))
         val latestChangedDelivery = callbackDispatcher.takeDelivery()
 
@@ -244,7 +246,8 @@ class FloatingLyricsServiceLatestMediaTest {
     }
 
     @Test
-    fun deletedLyrics_pauseAutomaticLookupUntilManualUpdateOrTrackChange() {
+    fun deletedLyrics_keepsOnlineLookupDisabledAcrossUpdatesAndTrackChanges() {
+        LyricsSettingsStore.setStatusHintsEnabled(context, true)
         LyricsSettingsStore.setAutoSearchOnlineEnabled(context, true)
         val controller = Robolectric.buildService(RecordingLookupFloatingLyricsService::class.java)
             .create()
@@ -277,7 +280,7 @@ class FloatingLyricsServiceLatestMediaTest {
             )
         )
         publishLyricsChanged(song(OLD_TITLE), LyricsChangeKind.UPDATED)
-        assertTrue(service.takeLookupSettings().autoSearchOnline)
+        assertFalse(service.takeLookupSettings().autoSearchOnline)
         service.callbackDispatcher.takeDelivery().invoke()
 
         assertNull(service.automaticOnlineLookupSuppressedSong)
@@ -307,7 +310,7 @@ class FloatingLyricsServiceLatestMediaTest {
             )
         )
         assertTrue(service.applyCurrentMediaInfo(media(NEW_TITLE, sequence = 3L, isPlaying = true)))
-        assertTrue(service.takeLookupSettings().autoSearchOnline)
+        assertFalse(service.takeLookupSettings().autoSearchOnline)
         assertEquals(NEW_TITLE, service.lastLookupMedia?.title)
         service.callbackDispatcher.takeDelivery().invoke()
 
@@ -315,17 +318,8 @@ class FloatingLyricsServiceLatestMediaTest {
         assertEquals("next song lyrics", lyricsView.text.toString())
     }
 
-    private fun saveLocalPlainLyrics(title: String, plainLrc: String) {
-        assertTrue(
-            LyricsStorage.savePlainLyrics(
-                context = context,
-                title = title,
-                artist = ARTIST,
-                duration = DURATION_MS,
-                plainLrc = plainLrc,
-                plainProvider = "service-test"
-            )
-        )
+    private fun saveCatalogLyrics(title: String, plainLrc: String) {
+        catalogFixture.save(context, title, ARTIST, ALBUM, DURATION_MS, plainLrc)
     }
 
     private fun media(
@@ -368,6 +362,7 @@ class FloatingLyricsServiceLatestMediaTest {
     }
 
     private fun resetState() {
+        catalogFixture.clear(context)
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .clear()

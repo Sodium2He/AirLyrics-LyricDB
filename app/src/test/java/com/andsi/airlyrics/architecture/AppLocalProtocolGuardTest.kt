@@ -62,6 +62,8 @@ class AppLocalProtocolGuardTest {
         private val SOURCE_EXTENSIONS = setOf("kt", "java")
 
         private val PROTOCOL_OWNER_FILES = setOf(
+            "app/src/main/java/com/andsi/airlyrics/lyrics/catalog/LibraryCatalogChangedBroadcast.kt",
+            "app/src/main/java/com/andsi/airlyrics/settings/store/StatusHintsChangedBroadcast.kt",
             "app/src/main/java/com/andsi/airlyrics/floating/FloatingServiceCommand.kt",
             "app/src/main/java/com/andsi/airlyrics/floating/FloatingWindowStateBroadcast.kt",
             "app/src/main/java/com/andsi/airlyrics/lyrics/LyricsChangedBroadcast.kt",

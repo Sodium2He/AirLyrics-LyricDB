@@ -17,9 +17,11 @@
 
 ## 使用与构建
 
+**歌曲元数据首选建议：** 艺术家、专辑艺术家、流派等多值字段优先采用原生多值标签：**Use single MP4 atom for multiple values**（MP4 单个 atom 内存储多个值），或 ID3v2.4 原生多值标签。传统分隔符具备兼容性支持，但不保证匹配可靠性。
+
 [使用指南](docs/USER_GUIDE.zh-CN.md) · [构建说明](docs/CONTRIBUTING.zh-CN.md) · [隐私说明](PRIVACY.zh-CN.md)
 
-版本：`1.2.5-lyricdb.1`。包名：`com.andsi.airlyrics.lyricdb`，可与原版共存。
+版本：`1.2.5-lyricdb.2`。包名：`com.andsi.airlyrics.lyricdb`，可与原版共存。
 
 [仓库](https://github.com/Sodium2He/AirLyrics-LyricDB/tree/lyricdb) · [问题反馈](https://github.com/Sodium2He/AirLyrics-LyricDB/issues)
 

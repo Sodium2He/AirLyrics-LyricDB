@@ -6,6 +6,24 @@ import org.junit.Test
 
 class TrackMatcherTest {
     @Test
+    fun mikuSymphony_matchesWholeArtistListAcrossSeparators() {
+        val title = "未来序曲(フルver.)[Live]"
+        val album = "初音ミクシンフォニー～Miku Symphony 2017～ オーケストラ ライブ"
+        val observed = observation(title, "初音ミク, 東京フィルハーモニー交響楽団", album, 237_000L)
+        for (artists in listOf(listOf("初音ミク / 東京フィルハーモニー交響楽団"),
+            listOf("初音ミク", "東京フィルハーモニー交響楽団"))) {
+            val candidate = ref(1, title, artists.first(), album, 237_000L, "lyrics", artists)
+            assertTrue(TrackMatcher.decide(observed, listOf(candidate)) is MatchDecision.Accepted)
+            assertTrue(TrackMatcher.decide(observed.copy(artist = "初音ミク, 別の演奏者"),
+                listOf(candidate)) !is MatchDecision.Accepted)
+            assertTrue(TrackMatcher.decide(observed.copy(durationMs = 300_000L),
+                listOf(candidate)) !is MatchDecision.Accepted)
+            assertTrue(TrackMatcher.decide(observed, listOf(candidate, candidate.copy(trackId = 2,
+                lyricsTextHash = "other"))) is MatchDecision.Ambiguous)
+        }
+    }
+
+    @Test
     fun sameTitleDifferentAlbums_areNotAutoAccepted() {
         val decision = TrackMatcher.decide(
             observation("Deep Mountain", "Artist", album = "Live"),
