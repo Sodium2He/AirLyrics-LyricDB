@@ -21,6 +21,11 @@ import com.andsi.airlyrics.core.model.LyricsLineDisplayMode
 import com.andsi.airlyrics.core.model.LyricsSwitchAnimationMode
 import com.andsi.airlyrics.design.tokens.AirUiTokens
 
+enum class ParsedLyricsAvailability {
+    AVAILABLE,
+    EMPTY
+}
+
 /**
  * Maintains parsed lyric lines and renders the line matching the current playback position.
  */
@@ -103,20 +108,43 @@ class FloatingLyricsRenderer(
         wordByWordLines: List<WordByWordLine> = emptyList(),
         emptyText: String,
         translationWordByWordLines: List<WordByWordLine> = emptyList()
-    ) {
+    ): ParsedLyricsAvailability {
         currentPlainLines = LrcParser.parseWithTranslation(plainLrc, translatedLrc)
         currentWordByWordLines = wordByWordLines
         currentTranslationWordByWordLines = translationWordByWordLines
 
-        val text = if (currentPlainLines.isNotEmpty() || currentWordByWordLines.isNotEmpty()) {
+        val availability = if (hasRenderableLyrics()) {
+            ParsedLyricsAvailability.AVAILABLE
+        } else {
+            ParsedLyricsAvailability.EMPTY
+        }
+        val text = if (availability == ParsedLyricsAvailability.AVAILABLE) {
             renderAtCurrentPosition().takeIf { it.isNotBlankText() }
                 ?: renderPlainTextAtIndex(0).takeIf { it.isNotBlankText() }
                 ?: emptyText
         } else {
+            // Do not let a subsequent tick/refresh resurrect metadata-only content.
+            currentPlainLines = emptyList()
+            currentWordByWordLines = emptyList()
+            currentTranslationWordByWordLines = emptyList()
             emptyText
         }
 
         setTextImmediately(text)
+        return availability
+    }
+
+    private fun hasRenderableLyrics(): Boolean {
+        val hasPlainLyrics = currentPlainLines.any { line ->
+            !line.isMetadata && (line.text.isNotBlank() || line.hasTranslation())
+        }
+        val hasWordByWordLyrics = currentWordByWordLines.any { line ->
+            line.text.isNotBlank() || line.segments.any { it.text.isNotBlank() }
+        }
+        val hasTranslationWordByWordLyrics = currentTranslationWordByWordLines.any { line ->
+            line.text.isNotBlank() || line.segments.any { it.text.isNotBlank() }
+        }
+        return hasPlainLyrics || hasWordByWordLyrics || hasTranslationWordByWordLyrics
     }
 
     fun tick() {

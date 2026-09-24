@@ -28,7 +28,7 @@ public sealed class MainForm : Form
 
         var sourceLabel = new Label
         {
-            Text = "Music root (read-only). Scans only Album and Main. Output is sibling $DB.",
+            Text = "Fixed layout: read embedded lyrics only from Album/Main; write only to sibling $DB.",
             AutoSize = true,
             Left = 12,
             Top = 12
@@ -38,7 +38,7 @@ public sealed class MainForm : Form
             Left = 12,
             Top = 36,
             Width = 720,
-            Text = @"E:\Cache"
+            PlaceholderText = @"Select the music root containing Album and/or Main"
         };
         var browse = new Button
         {

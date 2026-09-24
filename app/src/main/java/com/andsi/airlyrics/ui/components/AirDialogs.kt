@@ -118,6 +118,9 @@ internal fun MainUiHost.showAirDialog(
     onPositive: () -> Unit = {}
 ): Dialog {
     val host = this
+    // Dialogs own input in a separate window. Remove Activity feedback first so
+    // the snackbar cannot remain visible underneath the dialog.
+    dismissMessage()
     val dialog = AirAnimatedDialog(this, android.R.style.Theme_Translucent_NoTitleBar)
     dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
 

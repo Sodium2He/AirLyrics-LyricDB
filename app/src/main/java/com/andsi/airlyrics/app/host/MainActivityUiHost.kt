@@ -141,6 +141,7 @@ internal class MainActivityUiHost(
     override fun runOnStartedUi(expectedGeneration: Long, block: () -> Unit) =
         graph.runOnStartedUi(expectedGeneration, block)
     override fun showMessage(messageRes: Int) = graph.feedback.showMessage(messageRes)
+    override fun dismissMessage() = graph.feedback.dismiss()
 
     override fun refreshMediaButton(): View = refreshMediaButtonImpl()
     override fun mediaSourceCard(controller: MediaController, selected: Boolean): View = mediaSourceCardImpl(controller, selected)
@@ -339,7 +340,8 @@ internal class MainActivityUiHost(
     override fun permissionSummary(): String = permissionSummaryImpl()
     override fun getAppVersionName(): String = getAppVersionNameImpl()
     override fun openUrl(url: String) = openUrlImpl(url)
-    override fun refreshAfterLanguageChanged() = refreshAfterLanguageChangedImpl()
+    override fun reloadFloatingLyricsAfterLanguageChanged() =
+        reloadFloatingLyricsAfterLanguageChangedImpl()
 
     override fun hasNotificationPermission(): Boolean = uiState.postNotificationsGranted
     override fun hasNotificationListenerAccess(): Boolean = uiState.notificationListenerGranted
@@ -424,6 +426,10 @@ internal class MainActivityUiHost(
                 LanguageOptionUiItem(
                     mode = LanguageSettingsStore.MODE_ZH_CN,
                     title = getString(R.string.ui_chinese_simplified)
+                ),
+                LanguageOptionUiItem(
+                    mode = LanguageSettingsStore.MODE_ZH_TW,
+                    title = getString(R.string.ui_chinese_traditional)
                 ),
                 LanguageOptionUiItem(
                     mode = LanguageSettingsStore.MODE_EN,

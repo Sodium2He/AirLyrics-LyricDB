@@ -4,6 +4,7 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.os.SystemClock
 import android.text.Layout
 import android.text.Spanned
 import android.text.StaticLayout
@@ -27,10 +28,21 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
     private data class RowKey(val text: String, val size: Float, val color: Int,
         val typeface: android.graphics.Typeface?, val fakeBold: Boolean, val skew: Float,
         val letterSpacing: Float, val shadowRadius: Float, val shadowColor: Int)
+    private data class ScrollRowIdentity(
+        val rowKey: RowKey,
+        val startMs: Long,
+        val endMs: Long,
+        val visibleIndex: Int
+    )
     private data class Row(val key: RowKey, val layout: StaticLayout, val width: Float)
     private var rows = emptyList<Row>()
     private var motions = emptyList<LyricRowMotion?>()
     private var playbackPositionMs = 0L
+    private var previousPlaybackPositionMs: Long? = null
+    private var previousPlaybackUpdateUptimeMs: Long? = null
+    private var resetScrollMotion = true
+    private data class ScrollState(var offset: Float, var frameNanos: Long)
+    private val scrollStates = mutableMapOf<ScrollRowIdentity, ScrollState>()
     private var sizeAnimator: ValueAnimator? = null
     private var targetWidth = 0
     private var targetHeight = 0
@@ -40,6 +52,18 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
         private set
 
     fun renderLyrics(value: CharSequence, positionMs: Long) {
+        val updateUptimeMs = SystemClock.uptimeMillis()
+        val previousPosition = previousPlaybackPositionMs
+        val previousUptime = previousPlaybackUpdateUptimeMs
+        if (previousPosition != null && previousUptime != null) {
+            val elapsed = (updateUptimeMs - previousUptime).coerceAtLeast(0L)
+            if (shouldSnapLyricScroll(previousPosition, positionMs, elapsed)) {
+                // A real seek should land immediately instead of visibly chasing the old location.
+                resetScrollMotion = true
+            }
+        }
+        previousPlaybackPositionMs = positionMs
+        previousPlaybackUpdateUptimeMs = updateUptimeMs
         playbackPositionMs = positionMs
         val plain = value.toString()
         val spanned = value as? Spanned
@@ -71,7 +95,10 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
         motions = newMotions
         // Accessibility retains complete text. Do not rebuild TextView layout on each karaoke tick.
         if (text.toString() != plain) text = plain
-        if (geometryChanged) requestLayout()
+        if (geometryChanged) {
+            resetScrollMotion = true
+            requestLayout()
+        }
         invalidate()
     }
 
@@ -111,15 +138,15 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
     }
 
     private fun drawLyrics(canvas: Canvas) {
-        if (rows.isEmpty()) {
-            super.onDraw(canvas)
-            return
-        }
         val viewport = (width - paddingLeft - paddingRight).toFloat().coerceAtLeast(1f)
         val saved = canvas.save()
         canvas.clipRect(paddingLeft.toFloat(), paddingTop.toFloat(),
             (width - paddingRight).toFloat(), (height - paddingBottom).toFloat())
         var top = paddingTop.toFloat()
+        var keepAnimatingScroll = false
+        val frameNanos = System.nanoTime()
+        if (resetScrollMotion) scrollStates.clear()
+        val activeScrollRows = mutableSetOf<ScrollRowIdentity>()
         rows.forEachIndexed { index, row ->
             val motion = motions.getOrNull(index)
             val rtl = row.layout.getParagraphDirection(0) < 0
@@ -131,7 +158,40 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
                 else row.layout.getPrimaryHorizontal(progress.completedEnd)
             }
             val logicalHighlight = highlightX?.let { if (rtl) row.layout.width - it else it }
-            val offset = lyricScrollOffset(row.width, viewport, playbackPositionMs, motion, logicalHighlight)
+            val targetOffset = lyricScrollOffset(
+                row.width,
+                viewport,
+                playbackPositionMs,
+                motion,
+                logicalHighlight
+            )
+            val offset = if (motion?.isCurrent == true && row.width > viewport) {
+                val rowIdentity = ScrollRowIdentity(
+                    rowKey = row.key,
+                    startMs = motion.startMs,
+                    endMs = motion.endMs,
+                    visibleIndex = index
+                )
+                activeScrollRows += rowIdentity
+                val state = scrollStates.getOrPut(rowIdentity) { ScrollState(targetOffset, frameNanos) }
+                if (state.frameNanos != frameNanos) {
+                    val elapsedMs = ((frameNanos - state.frameNanos) / 1_000_000f)
+                        .coerceIn(0f, 50f)
+                    state.offset = smoothLyricScrollOffset(
+                        state.offset,
+                        targetOffset,
+                        elapsedMs
+                    )
+                    state.frameNanos = frameNanos
+                }
+                state.offset = state.offset.coerceIn(0f, row.width - viewport)
+                if (kotlin.math.abs(state.offset - targetOffset) >= 0.1f) {
+                    keepAnimatingScroll = true
+                }
+                state.offset
+            } else {
+                targetOffset
+            }
             val align = when (gravity and Gravity.HORIZONTAL_GRAVITY_MASK) {
                 Gravity.CENTER_HORIZONTAL -> (viewport - row.width) / 2f
                 Gravity.RIGHT -> viewport - row.width
@@ -140,7 +200,7 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
             val x = if (row.width <= viewport) align else if (rtl) viewport - row.width + offset else -offset
             val lineSave = canvas.save()
             canvas.translate(paddingLeft + x - row.layout.getLineLeft(0), top)
-            val hasHighlight = highlightX != null && motion != null && motion.isCurrent
+            val hasHighlight = highlightX != null && motion?.isCurrent == true
             val baseClip = canvas.save()
             if (hasHighlight) {
                 if (rtl) canvas.clipRect(0f, 0f, highlightX!!, row.layout.height.toFloat())
@@ -149,11 +209,11 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
             row.layout.paint.color = row.key.color
             row.layout.draw(canvas)
             canvas.restoreToCount(baseClip)
-            if (highlightX != null && motion != null && motion.isCurrent) {
+            if (hasHighlight) {
                 val clip = canvas.save()
-                if (rtl) canvas.clipRect(highlightX, 0f, row.layout.width.toFloat(), row.layout.height.toFloat())
-                else canvas.clipRect(0f, 0f, highlightX, row.layout.height.toFloat())
-                row.layout.paint.color = (motion.highlightColor and 0x00ffffff) or (Color.alpha(row.key.color) shl 24)
+                if (rtl) canvas.clipRect(highlightX!!, 0f, row.layout.width.toFloat(), row.layout.height.toFloat())
+                else canvas.clipRect(0f, 0f, highlightX!!, row.layout.height.toFloat())
+                row.layout.paint.color = (motion!!.highlightColor and 0x00ffffff) or (Color.alpha(row.key.color) shl 24)
                 row.layout.draw(canvas)
                 row.layout.paint.color = row.key.color
                 canvas.restoreToCount(clip)
@@ -161,7 +221,10 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
             canvas.restoreToCount(lineSave)
             top += row.layout.height
         }
+        resetScrollMotion = false
+        scrollStates.keys.retainAll(activeScrollRows)
         canvas.restoreToCount(saved)
+        if (keepAnimatingScroll) postInvalidateOnAnimation()
     }
 
     fun resetTextAnimation() {
@@ -192,6 +255,10 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
     }
 
     override fun onDraw(canvas: Canvas) {
+        if (rows.isEmpty()) {
+            super.onDraw(canvas)
+            return
+        }
         if (textProgress >= 1f) {
             drawLyrics(canvas)
             return
@@ -214,6 +281,10 @@ internal class FloatingLyricsTextView(context: Context) : AppCompatTextView(cont
         resetTextAnimation()
         sizeAnimator?.cancel()
         sizeAnimator = null
+        scrollStates.clear()
+        previousPlaybackPositionMs = null
+        previousPlaybackUpdateUptimeMs = null
+        resetScrollMotion = true
         super.onDetachedFromWindow()
     }
 

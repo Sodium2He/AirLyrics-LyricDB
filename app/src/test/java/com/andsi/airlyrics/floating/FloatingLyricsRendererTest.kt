@@ -38,6 +38,36 @@ class FloatingLyricsRendererTest {
     }
 
     @Test
+    fun parseAndShowReportsOnlyRenderableLyricsAsAvailable() {
+        val view = TextView(ApplicationProvider.getApplicationContext())
+        val renderer = FloatingLyricsRenderer(textViewProvider = { view })
+
+        assertEquals(
+            ParsedLyricsAvailability.EMPTY,
+            renderer.parseAndShow("[ar:Artist]\n[al:Album]", emptyText = "empty")
+        )
+        assertEquals("empty", view.text.toString())
+        renderer.updatePlayback(10_000L, false)
+        renderer.tick()
+        renderer.refresh()
+        assertEquals("empty", view.text.toString())
+
+        assertEquals(
+            ParsedLyricsAvailability.AVAILABLE,
+            renderer.parseAndShow("[00:01.00]lyrics", emptyText = "empty")
+        )
+
+        assertEquals(
+            ParsedLyricsAvailability.AVAILABLE,
+            renderer.parseAndShow(
+                plainLrc = "",
+                wordByWordLines = listOf(timedLine("Standalone")),
+                emptyText = "empty"
+            )
+        )
+    }
+
+    @Test
     fun lineSwitchDoesNotAnimateTheBackgroundView() {
         val view = FloatingLyricsTextView(ApplicationProvider.getApplicationContext())
         view.setBackgroundColor(Color.BLACK)

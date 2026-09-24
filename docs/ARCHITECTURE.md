@@ -4,7 +4,7 @@
 
 ## Components
 
-- `windows/AirLyrics.Maintainer`: Windows/.NET WinForms scanner, original embedded-lyrics readers, incremental state, SQLite shard publisher and WebDAV uploader. Input music is read-only; output is `$DB` beside `Album`/`Main`.
+- `windows/AirLyrics.Maintainer`: Windows/.NET WinForms scanner, original embedded-lyrics readers, incremental state, SQLite shard publisher and WebDAV uploader. The current code hard-codes `Album`/`Main` as scan directory names and the sibling `$DB` as the output directory.
 - `shared`: catalog schema and cross-language fixtures.
 - `app`: Kotlin Android app, catalog synchronization/indexing, metadata matching, playback clock and overlay.
 - `lyrics-core`: inherited Rust/JNI online providers, outside current tested scope.
