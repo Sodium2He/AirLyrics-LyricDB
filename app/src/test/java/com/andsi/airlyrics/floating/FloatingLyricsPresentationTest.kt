@@ -16,6 +16,39 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class FloatingLyricsPresentationTest {
+    @Test fun bilingualLongRowsRetainIndependentScrollState() {
+        val view = FloatingLyricsTextView(ApplicationProvider.getApplicationContext()).apply {
+            textSize = 24f
+            minWidth = 80
+            maxWidth = 80
+        }
+        val original = "Original long lyric ".repeat(8)
+        val translated = "Translated long lyric ".repeat(8)
+        val value = android.text.SpannableStringBuilder("$original\n$translated").apply {
+            setSpan(LyricRowMotion(0, 10000, true, highlightColor = Color.CYAN),
+                0, original.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(LyricRowMotion(0, 10000, true, highlightColor = Color.CYAN),
+                original.length + 1, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        fun draw(position: Long) {
+            view.renderLyrics(value, position)
+            view.measure(View.MeasureSpec.makeMeasureSpec(80, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.AT_MOST))
+            view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(bitmap))
+            bitmap.recycle()
+        }
+        draw(5000)
+        val field = FloatingLyricsTextView::class.java.getDeclaredField("scrollStates").apply { isAccessible = true }
+        val states = field.get(view) as Map<*, *>
+        val firstFrame = states.values.toList()
+        assertEquals(2, firstFrame.size)
+        draw(5040)
+        assertEquals(2, states.size)
+        firstFrame.zip(states.values).forEach { (before, after) -> assertSame(before, after) }
+    }
+
     @Test fun timedUpdatesKeepWholeRowGeometryAndTranslationTiming() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val view = FloatingLyricsTextView(context).apply {
@@ -65,6 +98,37 @@ class FloatingLyricsPresentationTest {
         assertEquals(0f, lyricScrollOffset(100f, 200f, 5000, motion, 80f))
         assertEquals(0f, lyricScrollOffset(600f, 200f, 5000, motion.copy(isCurrent = false), 300f))
         assertEquals(200f, lyricScrollOffset(600f, 200f, 6000, motion.copy(words = null), null), 0.001f)
+    }
+
+    @Test fun longLineScrollSmoothingIsContinuousAndDoesNotOvershoot() {
+        var offset = 100f
+        val samples = mutableListOf<Float>()
+        repeat(6) {
+            offset = smoothLyricScrollOffset(offset, 220f, elapsedMs = 16f)
+            samples += offset
+        }
+
+        assertTrue(samples.zipWithNext().all { (before, after) -> after > before })
+        assertTrue(samples.all { it in 100f..220f })
+        assertTrue(samples.last() < 220f)
+        assertEquals(220f, smoothLyricScrollOffset(219.95f, 220f, elapsedMs = 16f), 0.001f)
+    }
+
+    @Test fun longLineScrollSmoothingIsStableAcrossFrameRates() {
+        var sixtyFps = 0f
+        repeat(6) { sixtyFps = smoothLyricScrollOffset(sixtyFps, 300f, 15f) }
+
+        var thirtyFps = 0f
+        repeat(3) { thirtyFps = smoothLyricScrollOffset(thirtyFps, 300f, 30f) }
+
+        assertEquals(sixtyFps, thirtyFps, 0.001f)
+    }
+
+    @Test fun longLineScrollSnapsForSeeksButNotClockJitter() {
+        assertFalse(shouldSnapLyricScroll(1_000L, 1_040L, 40L))
+        assertFalse(shouldSnapLyricScroll(1_000L, 1_140L, 40L))
+        assertTrue(shouldSnapLyricScroll(1_000L, 3_000L, 40L))
+        assertTrue(shouldSnapLyricScroll(3_000L, 1_000L, 40L))
     }
 
     @Test fun optionalFilterRemovesSameTimePlaceholderBeforeBilingualPairing() {

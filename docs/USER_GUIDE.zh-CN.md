@@ -4,6 +4,8 @@
 
 ## 歌曲数据库
 
+> **目录说明：** Windows 工具从音乐根目录下的 `Album`、`Main` 提取元数据和内嵌歌词，在同级 `$DB` 生成数据库。这三个目录名目前硬编码在 `windows/AirLyrics.Maintainer/Paths/LibraryLayout.cs`；如需更改，请修改后重新编译。
+
 1. Windows 运行 `AirLyrics.Maintainer`，选择包含 `Album`、`Main` 的音乐根目录，点击 **Scan & Publish**。
 2. 将 `$DB/publish` 目录发布到 WebDAV。
 3. Android 设置 → 歌词 → 歌曲数据库，填写 `manifest.json` 的完整地址与凭据，在 Wi-Fi 下同步；也可直接导入发布目录。

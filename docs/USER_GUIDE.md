@@ -4,6 +4,8 @@
 
 ## Song database
 
+> **Directory layout:** The Windows tool extracts metadata and embedded lyrics from `Album` and `Main` under the music root and generates the database in the sibling `$DB` directory. These names are hard-coded in `windows/AirLyrics.Maintainer/Paths/LibraryLayout.cs`; edit that file and rebuild to change them.
+
 1. Run `AirLyrics.Maintainer` on Windows, select the music root containing `Album` and `Main`, and click **Scan & Publish**.
 2. Publish `$DB/publish` through WebDAV.
 3. In Android Settings → Lyrics → Song database, enter the full `manifest.json` URL and credentials, then sync over Wi-Fi. Local directory import is also available.

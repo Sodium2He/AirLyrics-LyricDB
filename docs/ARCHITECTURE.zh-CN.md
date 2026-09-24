@@ -4,7 +4,7 @@
 
 ## 组成
 
-- `windows/AirLyrics.Maintainer`：Windows/.NET WinForms 扫描、原始内嵌歌词读取、增量状态、SQLite 分片发布及 WebDAV 上传。输出位于 `Album`／`Main` 旁的 `$DB`。
+- `windows/AirLyrics.Maintainer`：Windows/.NET WinForms 扫描、原始内嵌歌词读取、增量状态、SQLite 分片发布及 WebDAV 上传。当前代码将扫描目录名硬编码为 `Album`／`Main`、输出目录名硬编码为同级 `$DB`。
 - `shared`：数据库结构和跨语言测试样本。
 - `app`：Kotlin Android 应用，包含同步、索引、元数据匹配、播放时钟和悬浮窗。
 - `lyrics-core`：继承的 Rust/JNI 在线源，不在当前测试范围内。

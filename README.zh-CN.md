@@ -4,12 +4,14 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-基于 AirLyrics 的歌曲数据库分支，主要针对 **Windows WebDAV 歌曲库和 Symfonium 播放器**。在线匹配和其他播放器适配尚未测试，短期内无测试计划。
+基于 AirLyrics 的歌曲数据库分支，主要针对 **Windows WebDAV 歌曲库和 Symfonium 播放器**。本分支的在线歌词匹配功能预计即将弃用；完成迁移后，本地歌词数据库将作为悬浮歌词的唯一来源。其他播放器适配仍未测试，短期内无测试计划。
+
+> **目录说明：** Windows 工具从音乐根目录下的 `Album`、`Main` 提取元数据和内嵌歌词，在同级 `$DB` 生成数据库。这三个目录名目前硬编码在 `windows/AirLyrics.Maintainer/Paths/LibraryLayout.cs`；如需更改，请修改后重新编译。
 
 ## 功能
 
 - 提取音乐文件中的歌词，基于歌曲元数据创建数据库。
-- Windows 维护工具扫描 `Album`、`Main`，在 `$DB` 生成数据库与发布清单；Android 通过 WebDAV 同步或导入。
+- Windows 维护工具按上述固定布局扫描 `Album`、`Main` 中的内嵌歌词，在 `$DB` 生成数据库与发布清单；Android 通过 WebDAV 同步或导入。
 - 根据播放器提供的歌曲元数据匹配歌词。
 - 桌面歌词与 App 内样例采用一致的显示样式，改善双语及逐字歌词渲染效果。
 - 译文字号、不透明度独立设置，支持长句滚动和背景框伸缩动画。
@@ -21,7 +23,7 @@
 
 [使用指南](docs/USER_GUIDE.zh-CN.md) · [构建说明](docs/CONTRIBUTING.zh-CN.md) · [隐私说明](PRIVACY.zh-CN.md)
 
-版本：`1.2.5-lyricdb.2`。包名：`com.andsi.airlyrics.lyricdb`，可与原版共存。
+版本：`1.2.6-lyricdb.1`。包名：`com.andsi.airlyrics.lyricdb`，可与原版共存。
 
 [仓库](https://github.com/Sodium2He/AirLyrics-LyricDB/tree/lyricdb) · [问题反馈](https://github.com/Sodium2He/AirLyrics-LyricDB/issues)
 
