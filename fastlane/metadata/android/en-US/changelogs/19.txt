@@ -1,0 +1,4 @@
+- Added adaptive settings layouts, Traditional Chinese, and Android per-app language support.
+- Improved Snackbar feedback and dialog overlap handling.
+- Smoothed long-line scrolling with independent motion for original lyrics and translations.
+- Fixed metadata-only lyrics reappearing during playback updates.

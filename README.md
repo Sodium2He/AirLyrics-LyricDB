@@ -23,7 +23,7 @@ An AirLyrics fork built for **Windows WebDAV music libraries and Symfonium**. On
 
 [User guide](docs/USER_GUIDE.md) · [Build instructions](docs/CONTRIBUTING.md) · [Privacy](PRIVACY.md)
 
-Version: `1.2.5-lyricdb.2`. Package: `com.andsi.airlyrics.lyricdb`, installable alongside upstream AirLyrics.
+Version: `1.2.6-lyricdb.1`. Package: `com.andsi.airlyrics.lyricdb`, installable alongside upstream AirLyrics.
 
 [Repository](https://github.com/Sodium2He/AirLyrics-LyricDB/tree/lyricdb) · [Issues](https://github.com/Sodium2He/AirLyrics-LyricDB/issues)
 

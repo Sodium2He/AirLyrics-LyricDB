@@ -1,3 +1,10 @@
+v1.2.6-lyricdb.1 - 2026-09-24
+
+- Added adaptive settings layouts, Traditional Chinese, and Android per-app language support.
+- Improved Snackbar feedback and dialog overlap handling.
+- Smoothed long-line scrolling with independent motion for original lyrics and translations.
+- Fixed metadata-only lyrics reappearing during playback updates.
+
 v1.2.5-lyricdb.2 - 2026-09-23
 
 - Fixed the empty background remaining visible when lyric status hints are disabled.

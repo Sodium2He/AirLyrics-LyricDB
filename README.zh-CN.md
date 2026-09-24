@@ -23,7 +23,7 @@
 
 [使用指南](docs/USER_GUIDE.zh-CN.md) · [构建说明](docs/CONTRIBUTING.zh-CN.md) · [隐私说明](PRIVACY.zh-CN.md)
 
-版本：`1.2.5-lyricdb.2`。包名：`com.andsi.airlyrics.lyricdb`，可与原版共存。
+版本：`1.2.6-lyricdb.1`。包名：`com.andsi.airlyrics.lyricdb`，可与原版共存。
 
 [仓库](https://github.com/Sodium2He/AirLyrics-LyricDB/tree/lyricdb) · [问题反馈](https://github.com/Sodium2He/AirLyrics-LyricDB/issues)
 
