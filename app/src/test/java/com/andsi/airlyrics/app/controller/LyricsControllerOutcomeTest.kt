@@ -12,10 +12,6 @@ import com.andsi.airlyrics.app.state.LyricsImportType
 import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.lyrics.LyricsChange
 import com.andsi.airlyrics.lyrics.LyricsChangedPublisher
-import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
-import com.andsi.airlyrics.lyrics.LyricsLookupErrorType
-import com.andsi.airlyrics.lyrics.LyricsLookupException
-import com.andsi.airlyrics.lyrics.LyricsProviderResult
 import com.andsi.airlyrics.lyrics.storage.FALLBACK_LYRICS_DIR
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import com.andsi.airlyrics.lyrics.storage.PREFS_NAME
@@ -23,12 +19,10 @@ import com.andsi.airlyrics.media.MediaSourceStore
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 import com.andsi.airlyrics.media.toSongIdentity
 import java.io.File
-import java.util.concurrent.CancellationException
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -171,128 +165,6 @@ class LyricsControllerOutcomeTest {
     }
 
     @Test
-    fun onlineLookup_mapsSavedNotFoundAndFailures() {
-        val media = media("Manual lookup")
-        val lookupError = LyricsLookupException(
-            providerId = "provider",
-            providerName = "Provider",
-            errorType = LyricsLookupErrorType.NetworkError,
-            detailMessage = "offline"
-        )
-        val cases = listOf(
-            OnlineCase(
-                result = Result.success(
-                    LyricsProviderResult(
-                        plainProviderId = "provider",
-                        plainProviderName = "Provider",
-                        plainLrc = "[00:01.00]online"
-                    )
-                ),
-                expected = OnlineLyricsSearchOutcome.Saved,
-                publishes = true
-            ),
-            OnlineCase(
-                result = Result.success(
-                    LyricsProviderResult(
-                        plainProviderId = "provider",
-                        plainProviderName = "Provider",
-                        plainLrc = "",
-                        translatedLrc = "[00:01.00]翻译"
-                    )
-                ),
-                expected = OnlineLyricsSearchOutcome.Saved,
-                publishes = true
-            ),
-            OnlineCase(
-                result = Result.success(null),
-                expected = OnlineLyricsSearchOutcome.NotFound
-            ),
-            OnlineCase(
-                result = Result.failure(lookupError),
-                expected = OnlineLyricsSearchOutcome.LookupFailed(lookupError)
-            ),
-            OnlineCase(
-                result = Result.failure(IllegalStateException("broken")),
-                expected = OnlineLyricsSearchOutcome.Failed
-            )
-        )
-
-        cases.forEach { case ->
-            val publisher = RecordingLyricsChangedPublisher()
-            val gateway = RecordingOnlineLyricsLookupGateway(case.result)
-            val cancellationToken = LyricsLookupCancellationToken(
-                requestKey = "controller-test",
-                generation = 1L
-            )
-            val outcome = controller(
-                publisher = publisher,
-                onlineGateway = gateway
-            ).searchOnlineLyricsForCurrentMedia(media, cancellationToken)
-
-            assertEquals(case.expected, outcome)
-            assertEquals(listOf(context), gateway.contextRequests)
-            assertEquals(listOf(media), gateway.mediaRequests)
-            assertEquals(listOf(cancellationToken), gateway.cancellationTokens)
-            val expectedChanges = if (case.publishes) {
-                listOf(LyricsChange.updated(media.toSongIdentity()))
-            } else {
-                emptyList()
-            }
-            assertEquals(expectedChanges, publisher.changes)
-        }
-    }
-
-    @Test
-    fun onlineSearch_rethrowsCancellationWithoutPublishingChange() {
-        val cancellation = CancellationException("lookup canceled")
-        val gateway = RecordingOnlineLyricsLookupGateway(Result.failure(cancellation))
-        val publisher = RecordingLyricsChangedPublisher()
-        val cancellationToken = LyricsLookupCancellationToken(
-            requestKey = "controller-test",
-            generation = 1L
-        )
-
-        val thrown = assertThrows(CancellationException::class.java) {
-            controller(
-                publisher = publisher,
-                onlineGateway = gateway
-            ).searchOnlineLyricsForCurrentMedia(media("Canceled lookup"), cancellationToken)
-        }
-
-        assertSame(cancellation, thrown)
-        assertTrue(publisher.changes.isEmpty())
-    }
-
-    @Test
-    fun onlineSearch_canceledTokenDoesNotPublishSuccessfulLookup() {
-        val publisher = RecordingLyricsChangedPublisher()
-        val cancellationToken = LyricsLookupCancellationToken(
-            requestKey = "controller-test",
-            generation = 1L
-        )
-        val gateway = OnlineLyricsLookupGateway { _, _, receivedToken ->
-            assertSame(cancellationToken, receivedToken)
-            receivedToken.cancel()
-            Result.success(
-                LyricsProviderResult(
-                    plainProviderId = "provider",
-                    plainProviderName = "Provider",
-                    plainLrc = "[00:01.00]canceled"
-                )
-            )
-        }
-
-        assertThrows(CancellationException::class.java) {
-            controller(
-                publisher = publisher,
-                onlineGateway = gateway
-            ).searchOnlineLyricsForCurrentMedia(media("Canceled result"), cancellationToken)
-        }
-
-        assertTrue(publisher.changes.isEmpty())
-    }
-
-    @Test
     fun deleteCurrentLyrics_returnsOutcomeAndPublishesTargetedDeletion() {
         val media = media("Delete current")
         assertTrue(
@@ -411,8 +283,6 @@ class LyricsControllerOutcomeTest {
     private fun controller(
         publisher: LyricsChangedPublisher = RecordingLyricsChangedPublisher(),
         importGateway: LyricsImportGateway = StorageLyricsImportGateway(),
-        onlineGateway: OnlineLyricsLookupGateway =
-            RecordingOnlineLyricsLookupGateway(Result.success(null)),
         mediaControllerProvider: MediaControllerProvider = EmptyMediaControllerProvider
     ): LyricsController {
         return LyricsController(
@@ -420,7 +290,6 @@ class LyricsControllerOutcomeTest {
             mediaControllerProvider = mediaControllerProvider,
             lyricsChangedPublisher = publisher,
             lyricsImportGateway = importGateway,
-            onlineLyricsLookupGateway = onlineGateway
         )
     }
 
@@ -499,12 +368,6 @@ class LyricsControllerOutcomeTest {
         val source: String
     )
 
-    private data class OnlineCase(
-        val result: Result<LyricsProviderResult?>,
-        val expected: OnlineLyricsSearchOutcome,
-        val publishes: Boolean = false
-    )
-
     private class FixedResultLyricsImportGateway(
         private val result: LyricsStorage.ImportLyricsResult
     ) : LyricsImportGateway {
@@ -521,25 +384,6 @@ class LyricsControllerOutcomeTest {
             target: SongIdentity,
             overwrite: Boolean
         ): LyricsStorage.ImportLyricsResult = result
-    }
-
-    private class RecordingOnlineLyricsLookupGateway(
-        private val result: Result<LyricsProviderResult?>
-    ) : OnlineLyricsLookupGateway {
-        val contextRequests = mutableListOf<Context>()
-        val mediaRequests = mutableListOf<CurrentMediaInfo>()
-        val cancellationTokens = mutableListOf<LyricsLookupCancellationToken>()
-
-        override fun findAndSave(
-            context: Context,
-            media: CurrentMediaInfo,
-            cancellationToken: LyricsLookupCancellationToken
-        ): Result<LyricsProviderResult?> {
-            contextRequests += context
-            mediaRequests += media
-            cancellationTokens += cancellationToken
-            return result
-        }
     }
 
     private class RecordingLyricsChangedPublisher : LyricsChangedPublisher {

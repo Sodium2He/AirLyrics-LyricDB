@@ -3,7 +3,6 @@ package com.andsi.airlyrics.app.host
 import com.andsi.airlyrics.app.MainGraph
 import com.andsi.airlyrics.app.sync.LibrarySyncScheduler
 import com.andsi.airlyrics.settings.store.LibrarySyncStore
-import com.andsi.airlyrics.settings.store.LyricsSettingsStore
 import com.andsi.airlyrics.ui.components.playTinyPulse
 import com.andsi.airlyrics.ui.model.MainUiActions
 
@@ -25,7 +24,6 @@ internal fun MainGraph.createMainUiActions(): MainUiActions {
         toggleDisplayScope = ::toggleDisplayScope,
         chooseDisplayScopeApps = { displayScopeWorkflow.showAppPicker() },
         reloadFloatingLyrics = floatingController::reloadLyrics,
-        searchOnlineLyricsForCurrentMedia = viewModel::searchOnlineLyricsForCurrentMedia,
         currentLyricsOffsetSummary = lyricsWorkflow::currentLyricsOffsetSummary,
         adjustLyricsOffsetForCurrentMedia = lyricsWorkflow::adjustLyricsOffsetForCurrentMedia,
         resetLyricsOffsetForCurrentMedia = lyricsWorkflow::resetLyricsOffsetForCurrentMedia,
@@ -55,21 +53,6 @@ internal fun MainGraph.createMainUiActions(): MainUiActions {
             deleteSavedLyrics(item.toStorageItem(), onCompleted)
         },
         deleteAllSavedLyrics = viewModel::deleteAllSavedLyrics,
-        toggleLyricsAutoSearch = {
-            val enabled = !LyricsSettingsStore.isAutoSearchOnlineEnabled(activity)
-            LyricsSettingsStore.setAutoSearchOnlineEnabled(activity, enabled)
-            floatingController.reloadLyrics()
-            enabled
-        },
-        toggleLyricsAutoSave = {
-            val enabled = !LyricsSettingsStore.isAutoSaveLocalEnabled(activity)
-            LyricsSettingsStore.setAutoSaveLocalEnabled(activity, enabled)
-            enabled
-        },
-        setPlainLyricsSources = { plainLyricsSearchSources ->
-            LyricsSettingsStore.setPlainLyricsSearchSources(activity, plainLyricsSearchSources)
-            floatingController.reloadLyrics()
-        },
         openUrl = uiHost::openUrl,
         selectMediaSource = { packageName, sourceCard ->
             mediaSourceController.selectSource(packageName)

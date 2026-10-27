@@ -29,7 +29,6 @@ import com.andsi.airlyrics.ui.theme.colorAccentMint
 import com.andsi.airlyrics.ui.theme.colorStroke
 import com.andsi.airlyrics.ui.theme.colorSurfaceLight
 import com.andsi.airlyrics.ui.theme.colorTextMuted
-import com.andsi.airlyrics.ui.theme.colorTextStrong
 import com.andsi.airlyrics.design.tokens.AirUiTokens
 
 private val currentLyricsLoadRunner = LatestUiTaskRunner()
@@ -125,17 +124,6 @@ internal fun createCurrentLyricsCard(activity: MainUiHost): RefreshableSettingsC
             })
         }
 
-        if (!state.hasLocalWordByWordLyrics) {
-            body.addView(actionButton(activity, getString(R.string.ui_search_online_again)) {
-                activity.showAirConfirmDialog(
-                    title = getString(R.string.ui_search_online_again_confirm),
-                    message = getString(R.string.ui_search_online_replace_cache_msg),
-                    positiveText = getString(R.string.ui_search)
-                ) {
-                    uiActions.searchOnlineLyricsForCurrentMedia()
-                }
-            })
-        }
     }
 
     fun populate(

@@ -1,6 +1,5 @@
 package com.andsi.airlyrics.app.viewmodel
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
@@ -25,7 +24,6 @@ import com.andsi.airlyrics.app.sync.LibrarySyncOperation
 import com.andsi.airlyrics.app.controller.LyricsDocumentValidation
 import com.andsi.airlyrics.app.controller.LyricsImportOutcome
 import com.andsi.airlyrics.app.controller.LyricsOperations
-import com.andsi.airlyrics.app.controller.OnlineLyricsSearchOutcome
 import com.andsi.airlyrics.app.state.MainFloatingState
 import com.andsi.airlyrics.app.state.LyricsImportType
 import com.andsi.airlyrics.app.state.PendingLyricsImport
@@ -35,7 +33,6 @@ import com.andsi.airlyrics.app.state.toPendingLyricsImport
 import com.andsi.airlyrics.app.state.toPendingLyricsOverwrite
 import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.lyrics.BroadcastLyricsChangedPublisher
-import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import com.andsi.airlyrics.lyrics.catalog.LocalCatalogActivateResult
 import com.andsi.airlyrics.lyrics.catalog.SyncOutcome
@@ -49,7 +46,6 @@ import com.andsi.airlyrics.ui.navigation.SettingsSubPage
 import com.andsi.airlyrics.ui.navigation.parentPage
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,9 +75,6 @@ internal class MainViewModel(
     private val uiEffectChannel = Channel<MainUiEffect>(capacity = Channel.BUFFERED)
     val uiEffects = uiEffectChannel.receiveAsFlow()
     private var mediaRefreshJob: Job? = null
-    private var onlineLyricsSearchJob: Job? = null
-    private var onlineLyricsSearchToken: LyricsLookupCancellationToken? = null
-    private var nextOnlineLyricsSearchGeneration = 0L
 
     override val locked: Boolean
         get() = _uiState.value.locked
@@ -370,59 +363,6 @@ internal class MainViewModel(
         }
     }
 
-    fun searchOnlineLyricsForCurrentMedia() {
-        cancelOnlineLyricsSearch()
-        val media = lyricsController.getCurrentMediaInfo()
-        if (media == null) {
-            showMessage(R.string.ui_no_active_media_found)
-            return
-        }
-
-        val cancellationToken = LyricsLookupCancellationToken(
-            requestKey = "manual:${media.toSongIdentity().storageKey()}",
-            generation = ++nextOnlineLyricsSearchGeneration
-        )
-        val searchJob = viewModelScope.launch(start = CoroutineStart.LAZY) {
-            try {
-                val outcome = withContext(ioDispatcher) {
-                    lyricsController.searchOnlineLyricsForCurrentMedia(
-                        media = media,
-                        cancellationToken = cancellationToken
-                    )
-                }
-                cancellationToken.throwIfCancellationRequested()
-                if (onlineLyricsSearchToken !== cancellationToken) return@launch
-
-                when (outcome) {
-                    OnlineLyricsSearchOutcome.Saved ->
-                        showMessage(R.string.ui_online_lyrics_saved)
-                    OnlineLyricsSearchOutcome.NotFound ->
-                        showMessage(R.string.ui_lyrics_not_found)
-                    is OnlineLyricsSearchOutcome.LookupFailed ->
-                        uiEffectChannel.trySend(MainUiEffect.ShowLyricsLookupError(outcome.error))
-                    OnlineLyricsSearchOutcome.Failed ->
-                        showMessage(R.string.ui_online_lyrics_search_failed, error = true)
-                }
-            } finally {
-                if (onlineLyricsSearchToken === cancellationToken) {
-                    onlineLyricsSearchToken = null
-                    onlineLyricsSearchJob = null
-                }
-            }
-        }
-        onlineLyricsSearchToken = cancellationToken
-        onlineLyricsSearchJob = searchJob
-        showMessage(R.string.ui_searching_online_again)
-        searchJob.start()
-    }
-
-    private fun cancelOnlineLyricsSearch() {
-        onlineLyricsSearchToken?.cancel()
-        onlineLyricsSearchJob?.cancel()
-        onlineLyricsSearchToken = null
-        onlineLyricsSearchJob = null
-    }
-
     fun deleteLyricsForCurrentMedia(mode: LyricsStorage.DeleteMode) {
         val media = lyricsController.getCurrentMediaInfo() ?: return
         viewModelScope.launch {
@@ -494,12 +434,6 @@ internal class MainViewModel(
     fun cancelMediaRefresh() {
         mediaRefreshJob?.cancel()
         mediaRefreshJob = null
-    }
-
-    @SuppressLint("EmptySuperCall")
-    override fun onCleared() {
-        cancelOnlineLyricsSearch()
-        super.onCleared()
     }
 
     override fun updateFloatingState(

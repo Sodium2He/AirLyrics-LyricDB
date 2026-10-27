@@ -44,7 +44,7 @@ jobs:
           chmod +x ./scripts/check_architecture_boundaries.sh
 
       - name: Run Android lint
-        run: ./gradlew :app:lintDebug -Pairlyrics.skipRustBuild=true --stacktrace
+        run: ./gradlew :app:lintDebug --stacktrace
 
       - name: Set up JDK for tests and builds
         uses: actions/setup-java@v6
@@ -53,10 +53,10 @@ jobs:
           java-version: '17'
 
       - name: Run JVM unit tests
-        run: ./gradlew :app:testDebugUnitTest -Pairlyrics.skipRustBuild=true --stacktrace
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Compile Android instrumentation tests
-        run: ./gradlew :app:assembleDebugAndroidTest -Pairlyrics.skipRustBuild=true --stacktrace
+        run: ./gradlew :app:assembleDebugAndroidTest --stacktrace
 
       - name: Check localization
         run: ./scripts/check_localization.sh
@@ -83,7 +83,7 @@ jobs:
           if-no-files-found: ignore
 
   android-debug-build:
-    name: Debug APK build without Rust rebuild
+    name: Debug APK build
     runs-on: ubuntu-latest
     needs: android-quality
 
@@ -109,7 +109,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug -Pairlyrics.skipRustBuild=true --stacktrace
+        run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload debug APK
         if: always()

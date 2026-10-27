@@ -115,18 +115,4 @@ sealed class CatalogLookupOutcome {
     data object Continue : CatalogLookupOutcome()
 }
 
-internal fun interface CatalogLyricsLookup {
-    fun lookup(
-        context: android.content.Context,
-        observation: TrackObservation
-    ): CatalogLookupOutcome
-}
-
 class CatalogLookupException(val status: String) : Exception("Library catalog: $status")
-
-internal object NoCatalogLyricsLookup : CatalogLyricsLookup {
-    override fun lookup(
-        context: android.content.Context,
-        observation: TrackObservation
-    ): CatalogLookupOutcome = CatalogLookupOutcome.Continue
-}

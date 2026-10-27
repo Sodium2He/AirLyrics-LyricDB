@@ -3,8 +3,6 @@ package com.andsi.airlyrics.i18n
 import android.content.Context
 import androidx.annotation.StringRes
 import com.andsi.airlyrics.R
-import com.andsi.airlyrics.lyrics.LyricsLookupErrorType
-import com.andsi.airlyrics.lyrics.LyricsLookupException
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -83,19 +81,4 @@ internal fun Context.localizedLocalLyricsMeta(item: LyricsStorage.LocalLyricsIte
     }
 
     return "$dateText · $sizeText"
-}
-
-internal fun Context.localizedLyricsLookupMessage(error: LyricsLookupException): String {
-    val providerName = localizedPlainLyricsProviderName(error.providerId.ifBlank { error.providerName })
-    val messageRes = when (error.errorType) {
-        LyricsLookupErrorType.NotFound -> R.string.lyrics_lookup_not_found
-        LyricsLookupErrorType.NeedCredential -> R.string.lyrics_lookup_need_credentials
-        LyricsLookupErrorType.RateLimited -> R.string.lyrics_lookup_rate_limited
-        LyricsLookupErrorType.RestrictedLyrics -> R.string.lyrics_lookup_restricted
-        LyricsLookupErrorType.NetworkError -> R.string.lyrics_lookup_network_failed
-        LyricsLookupErrorType.ParseError -> R.string.lyrics_lookup_parse_failed
-        LyricsLookupErrorType.NativeError -> R.string.lyrics_lookup_native_error
-        LyricsLookupErrorType.Unknown -> R.string.lyrics_lookup_failed
-    }
-    return getString(messageRes, providerName)
 }

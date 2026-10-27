@@ -1,14 +1,15 @@
-AirLyrics is a lightweight floating lyrics app.
+AirLyrics LyricDB displays synced floating lyrics using song metadata from the player. It is built for Windows WebDAV music libraries and Symfonium.
 
 Features:
-
-• Detect current media and show synced floating lyrics
-• Search for lyrics online through NetEase Cloud Music or Musixmatch
-• Import local standard LRC or word-by-word lyrics, display translations, and adjust timing
-• Customize the floating window and switch between light and dark themes
-
-AirLyrics is not a music player and does not include a complete lyrics database. If an online match is inaccurate, you can import local lyrics.
+• A Windows tool extracts song metadata and embedded lyrics into a LyricDB catalog
+• Android synchronizes the catalog through WebDAV or imports it from a local directory
+• Lyrics matching uses player metadata, with line-synced LRC and word-by-word timing
+• Separate text size and opacity controls for original lyrics and translations
+• Long-line scrolling, animated background resizing, and lyric line filtering
+• Adjustable floating window position, appearance, and display scope
 
 Privacy:
+Notification access detects media playback on the device. WebDAV sync sends requests and credentials to the configured server and downloads the lyrics catalog.
 
-AirLyrics does not collect or share personal data. Notification access is used only on-device for media detection; online search sends only the song information required to find lyrics.
+Source code and issue tracker:
+https://github.com/Sodium2He/AirLyrics-LyricDB

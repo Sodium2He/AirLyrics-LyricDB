@@ -1,1 +1,1 @@
-Synced floating lyrics: online search, local imports, and word-by-word support
+Floating lyrics from a LyricDB catalog, with WebDAV sync and word-by-word timing

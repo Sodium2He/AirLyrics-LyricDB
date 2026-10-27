@@ -34,7 +34,6 @@ import com.andsi.airlyrics.feedback.AirFeedback
 import com.andsi.airlyrics.feedback.ToastAirFeedback
 import com.andsi.airlyrics.floating.FloatingWindowRuntimeState
 import com.andsi.airlyrics.floating.FloatingWindowStateBroadcast
-import com.andsi.airlyrics.i18n.localizedLyricsLookupMessage
 import com.andsi.airlyrics.lyrics.importer.plainLyricsImportFormatErrorMessage
 import com.andsi.airlyrics.lyrics.importer.wordByWordLyricsImportFormatErrorMessage
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
@@ -531,8 +530,6 @@ internal class MainGraph(
                     message = message
                 )
             }
-            is MainUiEffect.ShowLyricsLookupError ->
-                feedback.showError(activity.localizedLyricsLookupMessage(effect.error))
             is MainUiEffect.ShowLyricsImportChoices ->
                 lyricsWorkflow.showImportLyricsDialog(
                     target = effect.target,

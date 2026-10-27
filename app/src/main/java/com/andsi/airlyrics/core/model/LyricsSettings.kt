@@ -1,36 +1,5 @@
 package com.andsi.airlyrics.core.model
 
-/** User-facing lyrics lookup and display configuration. */
-data class LyricsSettings(
-    /** Selected online lookup sources in priority order. Empty disables online lookup. */
-    val plainLyricsSearchSources: List<PlainLyricsSearchSource>,
-    val autoSearchOnline: Boolean,
-    val autoSaveLocal: Boolean,
-    val contentDisplayMode: LyricsContentDisplayMode = LyricsContentDisplayMode.default,
-    val lineDisplayMode: LyricsLineDisplayMode = LyricsLineDisplayMode.default,
-    val switchAnimationMode: LyricsSwitchAnimationMode = LyricsSwitchAnimationMode.default,
-    val wordByWordLyricsEnabled: Boolean = false
-)
-
-/** An online lookup source. Library catalog is checked before the title/artist local cache. */
-enum class PlainLyricsSearchSource(val key: String) {
-    /** Persisted compatibility value. New UI models local-only behavior with [LyricsSettings.autoSearchOnline]. */
-    LOCAL_ONLY("local_only"),
-    NETEASE("netease"),
-    MUSIXMATCH("musixmatch"),
-    LRCLIB("lrclib");
-
-    companion object {
-        val default: PlainLyricsSearchSource = NETEASE
-        val onlineSources: List<PlainLyricsSearchSource> = listOf(NETEASE, MUSIXMATCH, LRCLIB)
-
-        fun fromKeyOrNull(key: String?): PlainLyricsSearchSource? {
-            return entries.firstOrNull { it.key == key }
-        }
-
-    }
-}
-
 /** Controls which lyric text should be rendered when translations are available. */
 enum class LyricsContentDisplayMode(val key: String) {
     ORIGINAL_WITH_TRANSLATION("original_with_translation"),

@@ -1,7 +1,6 @@
 package com.andsi.airlyrics.ui.model
 
 import android.media.session.MediaController
-import com.andsi.airlyrics.core.model.PlainLyricsSearchSource
 
 internal data class MediaPageState(
     val controllers: List<MediaController>,
@@ -62,10 +61,6 @@ internal data class SavedLyricsUiState(
 )
 
 internal data class LyricsSettingsUiState(
-    val selectedPlainLyricsSources: List<PlainLyricsSearchSource>,
-    val plainLyricsSourceOptions: List<PlainLyricsSearchSource>,
-    val autoSearchOnline: Boolean,
-    val autoSaveLocal: Boolean,
     val lyricsDirectoryPath: String,
     val catalogActiveText: String,
     val syncEnabled: Boolean,

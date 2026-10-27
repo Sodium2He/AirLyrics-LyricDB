@@ -5,13 +5,11 @@ import com.andsi.airlyrics.R
 import com.andsi.airlyrics.ui.model.MainUiHost
 import com.andsi.airlyrics.ui.navigation.SettingsSubPage
 import com.andsi.airlyrics.ui.components.*
-import com.andsi.airlyrics.i18n.localizedPlainLyricsSourceList
 
 internal fun createSettingsHomePage(activity: MainUiHost): View  = with(activity) createSettingsHomePage@ {
     // The accent picker owns its height animation. A second CHANGING
     // LayoutTransition here would animate the same layout work twice.
     val container = pageContainer(activity, animateChanges = false)
-    val lyricsSettings = lyricsSettingsState()
 
     container.addView(settingsHomeHeader())
 

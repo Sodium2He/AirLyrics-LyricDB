@@ -4,7 +4,11 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-An AirLyrics fork built for **Windows WebDAV music libraries and Symfonium**. Online lyrics matching in this branch is expected to be retired soon; after that migration, the local lyrics database will be the overlay's only lyrics source. Other players remain untested, with no near-term testing planned.
+An AirLyrics fork built for **Windows WebDAV music libraries and Symfonium**. Other players remain untested, with no near-term testing planned.
+
+~~Online lyrics matching in this branch is expected to be retired soon; after that migration, the local lyrics database will be the overlay's only lyrics source.~~
+
+2026-10-27: Online lyrics search and its related functionality have been removed. The overlay uses the local LyricDB catalog, synchronized through WebDAV or imported from a local directory.
 
 > **Directory layout:** The Windows tool extracts metadata and embedded lyrics from `Album` and `Main` under the music root and generates the database in the sibling `$DB` directory. These names are hard-coded in `windows/AirLyrics.Maintainer/Paths/LibraryLayout.cs`; edit that file and rebuild to change them.
 

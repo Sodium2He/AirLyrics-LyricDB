@@ -4,7 +4,11 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-基于 AirLyrics 的歌曲数据库分支，主要针对 **Windows WebDAV 歌曲库和 Symfonium 播放器**。本分支的在线歌词匹配功能预计即将弃用；完成迁移后，本地歌词数据库将作为悬浮歌词的唯一来源。其他播放器适配仍未测试，短期内无测试计划。
+基于 AirLyrics 的歌曲数据库分支，主要针对 **Windows WebDAV 歌曲库和 Symfonium 播放器**。其他播放器适配仍未测试，短期内无测试计划。
+
+~~本分支的在线歌词匹配功能预计即将弃用；完成迁移后，本地歌词数据库将作为悬浮歌词的唯一来源。~~
+
+2026-10-27：在线歌词搜索及关联功能已删除。悬浮歌词使用本地 LyricDB 数据库，通过 WebDAV 同步或本地导入。
 
 > **目录说明：** Windows 工具从音乐根目录下的 `Album`、`Main` 提取元数据和内嵌歌词，在同级 `$DB` 生成数据库。这三个目录名目前硬编码在 `windows/AirLyrics.Maintainer/Paths/LibraryLayout.cs`；如需更改，请修改后重新编译。
 

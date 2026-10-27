@@ -1,9 +1,8 @@
-name: Full Android Rust Build
+name: Android Instrumentation
 
 on:
   pull_request:
     paths:
-      - 'lyrics-core/**'
       - 'app/src/androidTest/**'
       - 'app/src/main/java/com/andsi/airlyrics/core/model/SongIdentity.kt'
       - 'app/src/main/java/com/andsi/airlyrics/lyrics/storage/**'
@@ -14,14 +13,11 @@ on:
       - 'gradle/libs.versions.toml'
       - 'gradle/wrapper/**'
       - 'gradlew'
-      - 'app/src/main/jniLibs/**'
-      - 'app/src/main/java/com/andsi/airlyrics/lyrics/providers/**Native*.kt'
-      - '.github/workflows/full-android-rust-build.yml'
+      - '.github/workflows/android-instrumentation.yml'
   push:
     branches:
       - main
     paths:
-      - 'lyrics-core/**'
       - 'app/src/androidTest/**'
       - 'app/src/main/java/com/andsi/airlyrics/core/model/SongIdentity.kt'
       - 'app/src/main/java/com/andsi/airlyrics/lyrics/storage/**'
@@ -32,70 +28,17 @@ on:
       - 'gradle/libs.versions.toml'
       - 'gradle/wrapper/**'
       - 'gradlew'
-      - 'app/src/main/jniLibs/**'
-      - 'app/src/main/java/com/andsi/airlyrics/lyrics/providers/**Native*.kt'
-      - '.github/workflows/full-android-rust-build.yml'
+      - '.github/workflows/android-instrumentation.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: full-android-rust-build-${{ github.ref }}
+  group: android-instrumentation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-arm64-debug-apk:
-    name: Build arm64 debug APK with Rust JNI
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up JDK
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: platform-tools
-
-      - name: Install Android NDK
-        run: |
-          sdkmanager "ndk;26.3.11579264"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.3.11579264" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/26.3.11579264" >> "$GITHUB_ENV"
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.88.0
-        with:
-          targets: aarch64-linux-android
-
-      - name: Install cargo-ndk
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-ndk
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Prepare Gradle wrapper
-        run: chmod +x ./gradlew
-
-      - name: Build debug APK with Rust core
-        run: ./gradlew :app:assembleDebug --stacktrace
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: airlyrics-debug-apk-with-rust
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-
   instrumentation-x86_64:
     name: Run Android instrumentation on x86_64 emulator
     runs-on: ubuntu-latest
@@ -115,49 +58,11 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install Android NDK for emulator JNI
-        run: |
-          sdkmanager "ndk;26.3.11579264" "ndk;29.0.14206865"
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.88.0
-        with:
-          targets: x86_64-linux-android
-
-      - name: Install cargo-ndk
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-ndk
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
       - name: Prepare Gradle wrapper
         run: chmod +x ./gradlew
-
-      - name: Build x86_64 Rust JNI
-        working-directory: lyrics-core
-        run: |
-          ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" \
-          ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/29.0.14206865" \
-            cargo ndk \
-              -t x86_64 \
-              -o ../app/src/main/jniLibs \
-              build --release --locked
-
-      - name: Build emulator debug APK
-        run: >-
-          ./gradlew :app:assembleDebug
-          -Pairlyrics.skipRustBuild=true
-          -Pairlyrics.buildX86_64=true
-          --stacktrace
-
-      - name: Verify emulator JNI is packaged
-        run: |
-          test -f app/src/main/jniLibs/x86_64/libairlyrics_lyrics.so
-          file app/src/main/jniLibs/x86_64/libairlyrics_lyrics.so | grep 'x86-64'
-          unzip -Z1 app/build/outputs/apk/debug/app-debug.apk |
-            grep -Fx 'lib/x86_64/libairlyrics_lyrics.so'
 
       - name: Enable KVM
         run: |
@@ -175,8 +80,6 @@ jobs:
           profile: pixel_7
           script: >-
             ./gradlew :app:connectedDebugAndroidTest
-            -Pairlyrics.skipRustBuild=true
-            -Pairlyrics.buildX86_64=true
             --stacktrace
 
       - name: Verify instrumentation test results

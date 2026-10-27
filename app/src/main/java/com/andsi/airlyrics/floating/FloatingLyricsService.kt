@@ -11,8 +11,6 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.andsi.airlyrics.R
 import com.andsi.airlyrics.core.color.AirColorUtils
-import com.andsi.airlyrics.core.model.LyricsSettings
-import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.displayscope.DisplayScopeBlockReason
 import com.andsi.airlyrics.displayscope.DisplayScopeMonitor
 import com.andsi.airlyrics.feedback.AirFeedback
@@ -22,7 +20,6 @@ import com.andsi.airlyrics.lyrics.LyricsChangedBroadcast
 import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
 import com.andsi.airlyrics.lyrics.LyricsLookupRunner
 import com.andsi.airlyrics.lyrics.LyricsProviderResult
-import com.andsi.airlyrics.lyrics.LyricsRepository
 import com.andsi.airlyrics.lyrics.catalog.LyricsPrefetchCache
 import com.andsi.airlyrics.media.CurrentMediaBroadcast
 import com.andsi.airlyrics.media.MediaSourceStore
@@ -68,12 +65,11 @@ open class FloatingLyricsService : Service() {
     }
 
     protected open fun createLyricsLookupRunner(): LyricsLookupRunner {
-        return LyricsLookupRunner(threadNamePrefix = "AirLyrics-LyricsRepository")
+        return LyricsLookupRunner(threadNamePrefix = "AirLyrics-CatalogLookup")
     }
 
     internal open fun lookupLyricsForMedia(
         media: CurrentMediaInfo,
-        settings: LyricsSettings,
         cancellationToken: LyricsLookupCancellationToken
     ): Result<LyricsProviderResult?> {
         return runCatching {
@@ -95,7 +91,6 @@ open class FloatingLyricsService : Service() {
     internal var currentMedia: CurrentMediaInfo = CurrentMediaInfo.Empty
     internal var catalogUnavailable = false
     internal var lastPlaybackLyricsKey: PlaybackLyricsKey? = null
-    internal var automaticOnlineLookupSuppressedSong: SongIdentity? = null
     internal var activeLyricsLookupRequestKey: LyricsLookupRequestKey? = null
     internal var selectedSourcePackage: String? = null
     internal var autoHiddenForPause = false

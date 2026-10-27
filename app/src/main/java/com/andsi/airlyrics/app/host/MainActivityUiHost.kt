@@ -23,7 +23,6 @@ import com.andsi.airlyrics.core.model.FloatingLyricsStyle
 import com.andsi.airlyrics.core.model.LyricsContentDisplayMode
 import com.andsi.airlyrics.core.model.LyricsLineDisplayMode
 import com.andsi.airlyrics.core.model.LyricsSwitchAnimationMode
-import com.andsi.airlyrics.core.model.PlainLyricsSearchSource
 import com.andsi.airlyrics.core.model.ThemeAccent
 import com.andsi.airlyrics.design.tokens.AirUiTokens
 import com.andsi.airlyrics.displayscope.DisplayScopeCapability
@@ -31,7 +30,6 @@ import com.andsi.airlyrics.i18n.LanguageSettingsStore
 import com.andsi.airlyrics.i18n.localizedLocalLyricsMeta
 import com.andsi.airlyrics.i18n.localizedLocalLyricsSubtitle
 import com.andsi.airlyrics.i18n.localizedLocalLyricsType
-import com.andsi.airlyrics.i18n.localizedLocalPlainLyricsSource
 import com.andsi.airlyrics.lyrics.catalog.CatalogLookupOutcome
 import com.andsi.airlyrics.lyrics.catalog.LibraryCatalog
 import com.andsi.airlyrics.lyrics.catalog.TrackObservation
@@ -398,10 +396,6 @@ internal class MainActivityUiHost(
 
     override fun lyricsSettingsState(): LyricsSettingsUiState {
         return LyricsSettingsUiState(
-            selectedPlainLyricsSources = LyricsSettingsStore.getPlainLyricsSearchSources(this),
-            plainLyricsSourceOptions = PlainLyricsSearchSource.onlineSources,
-            autoSearchOnline = LyricsSettingsStore.isAutoSearchOnlineEnabled(this),
-            autoSaveLocal = LyricsSettingsStore.isAutoSaveLocalEnabled(this),
             lyricsDirectoryPath = LyricsStorage.getLyricsDirRawPath(this),
             catalogActiveText = catalogActiveText(),
             syncEnabled = LibrarySyncStore.isEnabled(this),

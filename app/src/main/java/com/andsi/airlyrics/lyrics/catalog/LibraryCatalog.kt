@@ -115,17 +115,6 @@ data class LibraryCatalogStatus(
     val generation: Long
 )
 
-internal object AndroidCatalogLyricsLookup : CatalogLyricsLookup {
-    override fun lookup(context: Context, observation: TrackObservation): CatalogLookupOutcome {
-        val catalog = LibraryCatalog.openIfPresent(context) ?: return CatalogLookupOutcome.Continue
-        return try {
-            catalog.lookup(observation)
-        } finally {
-            catalog.close()
-        }
-    }
-}
-
 object PublishManifestParser {
     fun parse(json: String): PublishManifest {
         val root = JSONObject(json)

@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import com.andsi.airlyrics.R
-import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.media.CurrentMediaReader
 import com.andsi.airlyrics.media.MediaNotificationListenerService
 import com.andsi.airlyrics.media.MediaSourceStore
@@ -18,7 +17,6 @@ import com.andsi.airlyrics.lyrics.catalog.QueuePrefetchPlanner
 import com.andsi.airlyrics.lyrics.catalog.TrackObservation
 import com.andsi.airlyrics.settings.store.LyricsOffsetStore
 import com.andsi.airlyrics.settings.store.QuickFloatingStore
-import java.util.concurrent.Executors
 
 internal fun FloatingLyricsService.shouldObserveSelectedMedia(): Boolean {
     return isWindowControllerReady() &&
@@ -89,11 +87,6 @@ internal fun FloatingLyricsService.applyCurrentMediaInfo(media: CurrentMediaInfo
 
     val playbackLyricsKey = media.playbackLyricsKey()
     refreshQueuePrefetch(media)
-    if (automaticOnlineLookupSuppressedSong != null &&
-        !isAutomaticOnlineLookupSuppressed(media)
-    ) {
-        automaticOnlineLookupSuppressedSong = null
-    }
     if (playbackLyricsKey == lastPlaybackLyricsKey) {
         renderer.tick()
         return true

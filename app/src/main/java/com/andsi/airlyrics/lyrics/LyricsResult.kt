@@ -1,8 +1,7 @@
 package com.andsi.airlyrics.lyrics
 
 /**
- * Normalized repository payload combining timed lyrics with optional local word-by-word timing.
- * A provider may return a translated-only track when no original track is available.
+ * Timed lyrics and matching metadata used by catalog lookup, prefetch, and display.
  */
 data class LyricsProviderResult(
     val plainProviderId: String,
@@ -20,7 +19,3 @@ data class LyricsProviderResult(
     val catalogRawText: String? = null,
     val catalogFormat: String? = null
 )
-
-internal fun LyricsProviderResult.hasUsableLyrics(): Boolean {
-    return plainLrc.isNotBlank() || !translatedLrc.isNullOrBlank()
-}

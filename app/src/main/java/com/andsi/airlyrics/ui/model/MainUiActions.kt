@@ -1,7 +1,6 @@
 package com.andsi.airlyrics.ui.model
 
 import android.view.View
-import com.andsi.airlyrics.core.model.PlainLyricsSearchSource
 import com.andsi.airlyrics.core.model.ThemeAccent
 import com.andsi.airlyrics.ui.navigation.Page
 import com.andsi.airlyrics.ui.navigation.SettingsSubPage
@@ -23,7 +22,6 @@ internal data class MainUiActions(
     val toggleDisplayScope: () -> Boolean,
     val chooseDisplayScopeApps: () -> Unit,
     val reloadFloatingLyrics: () -> Unit,
-    val searchOnlineLyricsForCurrentMedia: () -> Unit,
     val currentLyricsOffsetSummary: () -> String,
     val adjustLyricsOffsetForCurrentMedia: (Long) -> Long?,
     val resetLyricsOffsetForCurrentMedia: () -> Boolean,
@@ -42,9 +40,6 @@ internal data class MainUiActions(
     val deleteLyricsForCurrentMedia: (LyricsDeleteMode) -> Unit,
     val deleteSavedLyrics: (LocalLyricsUiItem, (Boolean) -> Unit) -> Unit,
     val deleteAllSavedLyrics: () -> Unit,
-    val toggleLyricsAutoSearch: () -> Boolean,
-    val toggleLyricsAutoSave: () -> Boolean,
-    val setPlainLyricsSources: (List<PlainLyricsSearchSource>) -> Unit,
     val openUrl: (String) -> Unit,
     val selectMediaSource: (String, View) -> Unit
 )

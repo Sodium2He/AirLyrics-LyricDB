@@ -8,16 +8,12 @@ import com.andsi.airlyrics.app.state.LyricsImportType
 import com.andsi.airlyrics.app.state.PendingLyricsOverwrite
 import com.andsi.airlyrics.core.model.SongIdentity
 import com.andsi.airlyrics.lyrics.LyricsChangedPublisher
-import com.andsi.airlyrics.lyrics.LyricsLookupCancellationToken
-import com.andsi.airlyrics.lyrics.LyricsLookupException
-import com.andsi.airlyrics.lyrics.hasUsableLyrics
 import com.andsi.airlyrics.lyrics.importer.LyricsImportValidator
 import com.andsi.airlyrics.lyrics.storage.LyricsStorage
 import com.andsi.airlyrics.media.CurrentMediaReader
 import com.andsi.airlyrics.media.MediaSourceStore
 import com.andsi.airlyrics.media.model.CurrentMediaInfo
 import com.andsi.airlyrics.media.toSongIdentity
-import java.util.concurrent.CancellationException
 
 internal sealed interface LyricsDocumentValidation {
     data object Valid : LyricsDocumentValidation
@@ -46,21 +42,12 @@ internal data class CurrentLyricsDeleteOutcome(
     val mode: LyricsStorage.DeleteMode
 )
 
-internal sealed interface OnlineLyricsSearchOutcome {
-    data object Saved : OnlineLyricsSearchOutcome
-    data object NotFound : OnlineLyricsSearchOutcome
-    data class LookupFailed(val error: LyricsLookupException) : OnlineLyricsSearchOutcome
-    data object Failed : OnlineLyricsSearchOutcome
-}
-
 /** Blocking lyrics operations. Callers own coroutine dispatching and UI outcomes. */
 internal class LyricsController(
     private val context: Context,
     private val mediaControllerProvider: MediaControllerProvider,
     private val lyricsChangedPublisher: LyricsChangedPublisher,
-    private val lyricsImportGateway: LyricsImportGateway = StorageLyricsImportGateway(),
-    private val onlineLyricsLookupGateway: OnlineLyricsLookupGateway =
-        RepositoryOnlineLyricsLookupGateway
+    private val lyricsImportGateway: LyricsImportGateway = StorageLyricsImportGateway()
 ) : LyricsOperations {
     override fun validatePickedDocument(
         uri: Uri
@@ -207,34 +194,6 @@ internal class LyricsController(
             lyricsChangedPublisher.publishDeleted()
         }
         return result
-    }
-
-    override fun searchOnlineLyricsForCurrentMedia(
-        media: CurrentMediaInfo,
-        cancellationToken: LyricsLookupCancellationToken
-    ): OnlineLyricsSearchOutcome {
-        cancellationToken.throwIfCancellationRequested()
-        val result = onlineLyricsLookupGateway.findAndSave(
-            context = context,
-            media = media,
-            cancellationToken = cancellationToken
-        )
-        cancellationToken.throwIfCancellationRequested()
-        val failure = result.exceptionOrNull()
-        if (failure is CancellationException) throw failure
-
-        val foundLyrics = result.getOrNull()?.takeIf { it.hasUsableLyrics() }
-        val lookupError = failure as? LyricsLookupException
-        return when {
-            foundLyrics != null -> {
-                cancellationToken.throwIfCancellationRequested()
-                lyricsChangedPublisher.publish(media.toSongIdentity())
-                OnlineLyricsSearchOutcome.Saved
-            }
-            lookupError != null -> OnlineLyricsSearchOutcome.LookupFailed(lookupError)
-            result.isFailure -> OnlineLyricsSearchOutcome.Failed
-            else -> OnlineLyricsSearchOutcome.NotFound
-        }
     }
 
     override fun getCurrentMediaInfo(): CurrentMediaInfo? {

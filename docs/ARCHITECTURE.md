@@ -7,7 +7,6 @@
 - `windows/AirLyrics.Maintainer`: Windows/.NET WinForms scanner, original embedded-lyrics readers, incremental state, SQLite shard publisher and WebDAV uploader. The current code hard-codes `Album`/`Main` as scan directory names and the sibling `$DB` as the output directory.
 - `shared`: catalog schema and cross-language fixtures.
 - `app`: Kotlin Android app, catalog synchronization/indexing, metadata matching, playback clock and overlay.
-- `lyrics-core`: inherited Rust/JNI online providers, outside current tested scope.
 
 ## Data path
 
@@ -25,4 +24,4 @@ The floating service uses catalog lookup directly. Android matching never relies
 
 ## Boundaries and validation
 
-UI talks to host interfaces; platform storage and service coordination stay outside UI. Settings live in the app sandbox. The package ID differs from upstream while source/JNI namespaces stay unchanged.
+UI talks to host interfaces; platform storage and service coordination stay outside UI. Settings live in the app sandbox. The package ID differs from upstream while the source namespace stays unchanged.
